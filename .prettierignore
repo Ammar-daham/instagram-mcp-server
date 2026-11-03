@@ -1,0 +1,5 @@
+dist/
+coverage/
+out/
+docs/plan/
+package-lock.json

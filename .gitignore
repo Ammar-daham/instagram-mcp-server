@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+out/
+.tokens/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Local planning docs (never committed)
+docs/plan/

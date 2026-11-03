@@ -1,0 +1,108 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { http, HttpResponse } from "msw";
+import { describe, expect, it } from "vitest";
+import { createContextFactory } from "../src/context.js";
+import { createServer, SERVER_NAME } from "../src/server.js";
+import { API, BASE, noSleep, useMsw } from "./helpers.js";
+
+const server = useMsw();
+
+async function connect(env: NodeJS.ProcessEnv) {
+  const mcp = createServer(createContextFactory(env, { sleep: noSleep }));
+  const client = new Client({ name: "test", version: "0" });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await Promise.all([mcp.connect(a), client.connect(b)]);
+  return client;
+}
+
+const env = {
+  IG_ACCESS_TOKEN: "T",
+  IG_API_BASE_URL: BASE,
+  IG_TOKEN_STORE: "/nonexistent/token.json",
+};
+const text = (result: Awaited<ReturnType<Client["callTool"]>>) =>
+  (result.content as { type: string; text: string }[])[0]!.text;
+
+describe("MCP server", () => {
+  it("identifies itself and lists the tools", async () => {
+    const client = await connect(env);
+    expect(client.getServerVersion()?.name).toBe(SERVER_NAME);
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name).sort()).toEqual(["check_token", "get_account_info"]);
+  });
+
+  it("get_account_info returns the account", async () => {
+    server.use(
+      http.get(`${API}/me`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get("fields")).toContain("followers_count");
+        return HttpResponse.json({
+          user_id: "42",
+          username: "eatwell",
+          followers_count: 1234,
+          media_count: 56,
+        });
+      }),
+    );
+    const client = await connect(env);
+    const result = await client.callTool({ name: "get_account_info", arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(text(result))).toMatchObject({ username: "eatwell", followers_count: 1234 });
+  });
+
+  it("get_account_info warns when IG_USER_ID doesn't match", async () => {
+    server.use(
+      http.get(`${API}/me`, () => HttpResponse.json({ user_id: "42", username: "eatwell" })),
+    );
+    const client = await connect({ ...env, IG_USER_ID: "99" });
+    const result = await client.callTool({ name: "get_account_info", arguments: {} });
+    expect(JSON.parse(text(result)).warning).toMatch(/doesn't match/);
+  });
+
+  it("check_token reports the token status", async () => {
+    server.use(
+      http.get(`${API}/me`, () => HttpResponse.json({ user_id: "42", username: "eatwell" })),
+    );
+    const client = await connect(env);
+    const result = await client.callTool({ name: "check_token", arguments: {} });
+    expect(JSON.parse(text(result))).toMatchObject({
+      valid: true,
+      username: "eatwell",
+      source: "env",
+    });
+  });
+
+  it("returns a readable tool error when config is missing", async () => {
+    const client = await connect({});
+    const result = await client.callTool({ name: "get_account_info", arguments: {} });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toMatch(/IG_ACCESS_TOKEN is missing/);
+  });
+
+  it("get_account_info reads the account by ID with a Facebook-login token", async () => {
+    server.use(
+      http.get(`${BASE}/v24.0/17841400000000001`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get("fields")).toBe(
+          "id,username,name,followers_count,follows_count,media_count",
+        );
+        return HttpResponse.json({
+          id: "17841400000000001",
+          username: "body.blooms.ai",
+          followers_count: 28,
+        });
+      }),
+    );
+    const client = await connect({
+      ...env,
+      IG_ACCESS_TOKEN: "EAAT",
+      IG_USER_ID: "17841400000000001",
+    });
+    const result = await client.callTool({ name: "get_account_info", arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(text(result))).toEqual({
+      user_id: "17841400000000001",
+      username: "body.blooms.ai",
+      followers_count: 28,
+    });
+  });
+});

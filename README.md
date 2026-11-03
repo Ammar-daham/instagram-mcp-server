@@ -45,12 +45,18 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 
 ### Cards
 
-`render_card` templates: `tip`, `macros`, `recipe`, `myth_fact`, `cover` (carousel cover) and
-`follow` ("follow for more" end slide). Ask Claude for a card, e.g. "make a macros card for a
-Greek yogurt bowl: 420 kcal, 32 g protein, 48 g carbs, 11 g fat", and it previews it in chat.
+`render_card` makes cards in **English or Arabic**. Claude asks which language first if you
+haven't said. Arabic cards are laid out right-to-left with Arabic labels (e.g. "نصيحة غذائية",
+"القيم الغذائية") in IBM Plex Sans Arabic. Short-vowel marks (tashkeel) are left out for clean
+rendering.
 
-Cards are 1080×1350 (4:5 portrait, the tallest format the feed shows) and use the Inter font
-(SIL Open Font License). Text is length-limited so it always fits; emoji aren't drawn on cards
+Templates: `tip`, `macros`, `recipe`, `myth_fact`, `cover` (carousel cover) and `follow`
+("follow for more" end slide). Ask Claude for a card, e.g. "make an Arabic tip card about
+drinking more water" or "make a macros card for a Greek yogurt bowl: 420 kcal, 32 g protein,
+48 g carbs, 11 g fat", and it previews it in chat.
+
+Cards are 1080×1350 (4:5 portrait, the tallest format the feed shows) and use the Inter and IBM
+Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so it always fits; emoji aren't drawn on cards
 (put them in the caption). Set your brand with these optional variables:
 
 | Variable                                          | Default            | Used for                                              |

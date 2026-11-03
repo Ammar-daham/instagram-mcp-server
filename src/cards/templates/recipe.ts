@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { div } from "../element.js";
 import { column, frame, heading, numberBadge, pill } from "../layout.js";
+import type { Locale } from "../locale.js";
 import { cardText, slideField } from "../text.js";
 import { tint, type Theme } from "../theme.js";
 
@@ -15,18 +16,21 @@ export const recipeSchema = z.strictObject({
 });
 export type RecipeContent = z.infer<typeof recipeSchema>;
 
-export function recipeCard(c: RecipeContent, theme: Theme) {
+export function recipeCard(c: RecipeContent, theme: Theme, t: Locale) {
   // Scale text down as the recipe gets longer so it always fits above the footer.
   const load = c.ingredients.length / 2 + c.steps.reduce((n, s) => n + (s.length > 45 ? 2 : 1), 0);
-  const body = load <= 7 ? 36 : load <= 10 ? 32 : 28;
+  // Arabic lines are taller, so it moves down one size step sooner.
+  const steps = t.dir === "rtl" ? [32, 28, 25] : [36, 32, 28];
+  const body = load <= 7 ? steps[0]! : load <= 10 ? steps[1]! : steps[2]!;
+  const lh = t.lineHeight(1.3);
   const meta = [c.time, c.servings].filter((m): m is string => Boolean(m));
   const sectionTitle = (text: string) =>
     div(
       {
         fontSize: 28,
         fontWeight: 800,
-        letterSpacing: 2,
-        textTransform: "uppercase",
+        letterSpacing: t.tracking(2),
+        textTransform: t.textTransform,
         color: theme.primary,
         marginBottom: 20,
       },
@@ -35,24 +39,25 @@ export function recipeCard(c: RecipeContent, theme: Theme) {
 
   return frame(
     theme,
-    { label: c.label ?? "Recipe", slide: c.slide },
+    t,
+    { label: c.label ?? t.text.recipeLabel, slide: c.slide },
     column(
       { flexGrow: 1 },
-      heading(c.title, 68, theme.text),
+      heading(c.title, 68, theme.text, t),
       meta.length
         ? div(
             { gap: 16, marginTop: 24 },
-            ...meta.map((m) => pill(m, tint(theme.accent, 0.2), theme.text)),
+            ...meta.map((m) => pill(m, tint(theme.accent, 0.2), theme.text, t)),
           )
         : null,
       column(
         { marginTop: 48 },
-        sectionTitle("Ingredients"),
+        sectionTitle(t.text.ingredients),
         div(
           { flexWrap: "wrap", columnGap: 32, rowGap: 12 },
           ...c.ingredients.map((item) =>
             div(
-              { width: 436, alignItems: "flex-start", gap: 14, fontSize: body, lineHeight: 1.3 },
+              { width: 436, alignItems: "flex-start", gap: 14, fontSize: body, lineHeight: lh },
               div({ color: theme.accent, fontWeight: 800 }, "•"),
               div({ flex: 1 }, item),
             ),
@@ -60,13 +65,21 @@ export function recipeCard(c: RecipeContent, theme: Theme) {
         ),
       ),
       column(
-        { marginTop: 44, gap: body > 30 ? 28 : 20 },
-        sectionTitle("Method"),
+        { marginTop: 44, gap: body > 30 ? 28 : body > 26 ? 20 : 14 },
+        sectionTitle(t.text.method),
         ...c.steps.map((step, i) =>
           div(
             { alignItems: "flex-start", gap: 24 },
             numberBadge(i + 1, theme, body + 20),
-            div({ fontSize: body, lineHeight: 1.35, flex: 1, paddingTop: body > 30 ? 2 : 4 }, step),
+            div(
+              {
+                fontSize: body,
+                lineHeight: t.lineHeight(1.35),
+                flex: 1,
+                paddingTop: t.dir === "rtl" ? 0 : body > 30 ? 2 : 4,
+              },
+              step,
+            ),
           ),
         ),
       ),

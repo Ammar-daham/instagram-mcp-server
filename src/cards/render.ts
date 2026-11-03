@@ -5,35 +5,53 @@ import satori from "satori";
 import sharp from "sharp";
 import { CARD_HEIGHT, CARD_WIDTH } from "./layout.js";
 import { parseContent, TEMPLATES, type TemplateName } from "./templates/index.js";
+import { LOCALES, type Language } from "./locale.js";
 import type { Theme } from "./theme.js";
 
-type FontWeight = 400 | 600 | 800;
-const WEIGHTS: FontWeight[] = [400, 600, 800];
-const SUBSETS = ["latin", "latin-ext"];
+type FontWeight = 400 | 600 | 700 | 800;
+interface FontSpec {
+  name: string;
+  file: string;
+  weight: FontWeight;
+}
+
+// All SIL OFL 1.1, from @fontsource. IBM Plex Sans Arabic tops out at 700, which satori
+// uses for the 800 headings. (Noto Sans Arabic was tried: satori drops some of its dots.)
+const FONT_SPECS: FontSpec[] = [
+  ...([400, 600, 800] as const).flatMap((weight) =>
+    ["latin", "latin-ext"].map((subset) => ({
+      name: "Inter",
+      file: `@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`,
+      weight,
+    })),
+  ),
+  ...([400, 600, 700] as const).map((weight) => ({
+    name: "IBM Plex Sans Arabic",
+    file: `@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-arabic-${weight}-normal.woff`,
+    weight,
+  })),
+];
 
 let fontsPromise: Promise<{ name: string; data: Buffer; weight: FontWeight; style: "normal" }[]>;
 
-/** Inter (SIL OFL 1.1) from @fontsource/inter; loaded once. */
+/** Load the bundled fonts once. */
 function loadFonts() {
   fontsPromise ??= (async () => {
     const require = createRequire(import.meta.url);
     return Promise.all(
-      WEIGHTS.flatMap((weight) =>
-        SUBSETS.map(async (subset) => ({
-          name: "Inter",
-          weight,
-          style: "normal" as const,
-          data: await readFile(
-            require.resolve(`@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`),
-          ),
-        })),
-      ),
+      FONT_SPECS.map(async ({ name, file, weight }) => ({
+        name,
+        weight,
+        style: "normal" as const,
+        data: await readFile(require.resolve(file)),
+      })),
     );
   })();
   return fontsPromise;
 }
 
 export interface RenderOptions {
+  language?: Language;
   /** false keeps text as <text> elements (readable SVG for snapshot tests). */
   embedFont?: boolean;
 }
@@ -45,8 +63,9 @@ export async function renderSvg(
   theme: Theme,
   options: RenderOptions = {},
 ): Promise<string> {
-  const data = parseContent(template, content);
-  const element = TEMPLATES[template].render(data, theme);
+  const language = options.language ?? "en";
+  const data = parseContent(template, content, language);
+  const element = TEMPLATES[template].render(data, theme, LOCALES[language]);
   return satori(element as Parameters<typeof satori>[0], {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
@@ -66,8 +85,9 @@ export async function renderCard(
   template: TemplateName,
   content: unknown,
   theme: Theme,
+  language: Language = "en",
 ): Promise<RenderedCard> {
-  const svg = await renderSvg(template, content, theme);
+  const svg = await renderSvg(template, content, theme, { language });
   const png = new Resvg(svg, { fitTo: { mode: "width", value: CARD_WIDTH } }).render().asPng();
   const jpeg = await sharp(png).jpeg({ quality: 90, mozjpeg: true }).toBuffer();
   return { jpeg, width: CARD_WIDTH, height: CARD_HEIGHT };

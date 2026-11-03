@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { div } from "../element.js";
 import { column, frame, heading } from "../layout.js";
+import type { Locale } from "../locale.js";
 import { cardText, slideField } from "../text.js";
 import { tint, type Theme } from "../theme.js";
 
@@ -21,11 +22,11 @@ export type MacrosContent = z.infer<typeof macrosSchema>;
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-export function macrosCard(c: MacrosContent, theme: Theme) {
+export function macrosCard(c: MacrosContent, theme: Theme, t: Locale) {
   const rows = [
-    { name: "Protein", g: c.protein_g, kcal: c.protein_g * 4, colour: theme.primary },
-    { name: "Carbs", g: c.carbs_g, kcal: c.carbs_g * 4, colour: theme.accent },
-    { name: "Fat", g: c.fat_g, kcal: c.fat_g * 9, colour: theme.highlight },
+    { name: t.text.protein, g: c.protein_g, kcal: c.protein_g * 4, colour: theme.primary },
+    { name: t.text.carbs, g: c.carbs_g, kcal: c.carbs_g * 4, colour: theme.accent },
+    { name: t.text.fat, g: c.fat_g, kcal: c.fat_g * 9, colour: theme.highlight },
   ];
   const total = rows.reduce((sum, r) => sum + r.kcal, 0) || 1;
   const BAR = 904;
@@ -35,10 +36,11 @@ export function macrosCard(c: MacrosContent, theme: Theme) {
 
   return frame(
     theme,
-    { label: c.label ?? "Macros", slide: c.slide },
+    t,
+    { label: c.label ?? t.text.macrosLabel, slide: c.slide },
     column(
       { flexGrow: 1 },
-      heading(c.title, long ? 60 : 76, theme.text),
+      heading(c.title, long ? 60 : 76, theme.text, t),
       c.serving ? div({ fontSize: 34, color: theme.muted, marginTop: 16 }, c.serving) : null,
       div(
         {
@@ -54,10 +56,11 @@ export function macrosCard(c: MacrosContent, theme: Theme) {
             color: theme.primary,
             letterSpacing: -6,
             lineHeight: 1,
+            fontFamily: "Inter",
           },
           String(c.calories),
         ),
-        div({ fontSize: 44, fontWeight: 600, color: theme.muted }, "kcal"),
+        div({ fontSize: 44, fontWeight: 600, color: theme.muted }, t.text.kcal),
       ),
       column(
         { gap: compact ? 30 : 44 },
@@ -70,8 +73,9 @@ export function macrosCard(c: MacrosContent, theme: Theme) {
               div({ fontSize: 40, fontWeight: 600 }, r.name),
               div(
                 { alignItems: "baseline", gap: 16 },
-                div({ fontSize: 40, fontWeight: 800 }, `${fmt(r.g)} g`),
-                div({ fontSize: 30, color: theme.muted }, `${pct}%`),
+                div({ fontSize: 40, fontWeight: 800 }, `${fmt(r.g)} ${t.text.grams}`),
+                // Keep "31%" left-to-right in Arabic too.
+                div({ fontSize: 30, color: theme.muted, direction: "ltr" }, `${pct}%`),
               ),
             ),
             div(
@@ -90,7 +94,7 @@ export function macrosCard(c: MacrosContent, theme: Theme) {
         ? div(
             {
               fontSize: compact ? 30 : 34,
-              lineHeight: 1.35,
+              lineHeight: t.lineHeight(1.35),
               color: theme.muted,
               marginTop: "auto",
               paddingTop: 24,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Code points the bundled Inter subsets (latin + latin-ext) can draw. */
+/** Code points the bundled fonts can draw: Inter (latin, latin-ext) + IBM Plex Sans Arabic. */
 const RENDERABLE: [number, number][] = [
   [0x0000, 0x024f],
   [0x0250, 0x02ff],
@@ -17,7 +17,24 @@ const RENDERABLE: [number, number][] = [
   [0x2215, 0x2215],
   [0x2c60, 0x2c7f],
   [0xa720, 0xa7ff],
+  // Arabic, Arabic Supplement, Arabic Extended-B/A, presentation forms
+  [0x0600, 0x06ff],
+  [0x0750, 0x077f],
+  [0x0870, 0x08ff],
+  [0xfb50, 0xfdff],
+  [0xfe70, 0xfeff],
 ];
+
+const ARABIC_LETTER = /\p{Script=Arabic}/gu;
+const LATIN_LETTER = /\p{Script=Latin}/gu;
+
+/** Count Arabic vs Latin letters, to catch content written in the other language. */
+export function scriptCounts(text: string): { arabic: number; latin: number } {
+  return {
+    arabic: text.match(ARABIC_LETTER)?.length ?? 0,
+    latin: text.match(LATIN_LETTER)?.length ?? 0,
+  };
+}
 
 export function unsupportedChars(text: string): string[] {
   const bad = new Set<string>();

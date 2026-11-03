@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { div } from "../element.js";
 import { column, frame, heading, numberBadge } from "../layout.js";
+import type { Locale } from "../locale.js";
 import { cardText, slideField } from "../text.js";
 import type { Theme } from "../theme.js";
 
@@ -12,7 +13,7 @@ export const tipSchema = z.strictObject({
 });
 export type TipContent = z.infer<typeof tipSchema>;
 
-export function tipCard(c: TipContent, theme: Theme) {
+export function tipCard(c: TipContent, theme: Theme, t: Locale) {
   // Scale with the amount of text so 4 long tips still fit above the footer.
   const chars = c.points.reduce((n, p) => n + p.length, 0) + c.title.length;
   const roomy = c.points.length <= 3 && chars <= 300;
@@ -20,17 +21,26 @@ export function tipCard(c: TipContent, theme: Theme) {
   const titleSize = c.title.length > 50 ? (roomy ? 72 : 60) : roomy ? 84 : 72;
   return frame(
     theme,
-    { label: c.label ?? "Nutrition tip", slide: c.slide },
+    t,
+    { label: c.label ?? t.text.tipLabel, slide: c.slide },
     column(
       { flexGrow: 1 },
-      heading(c.title, titleSize, theme.text, { marginBottom: roomy ? 72 : 48 }),
+      heading(c.title, titleSize, theme.text, t, { marginBottom: roomy ? 72 : 48 }),
       column(
         { gap: roomy ? 52 : size > 34 ? 36 : 28 },
         ...c.points.map((point, i) =>
           div(
             { alignItems: "flex-start", gap: 32 },
             numberBadge(i + 1, theme, roomy ? 68 : size + 18),
-            div({ fontSize: size, lineHeight: 1.35, paddingTop: roomy ? 2 : 4, flex: 1 }, point),
+            div(
+              {
+                fontSize: size,
+                lineHeight: t.lineHeight(1.35),
+                paddingTop: t.dir === "rtl" ? 0 : roomy ? 2 : 4,
+                flex: 1,
+              },
+              point,
+            ),
           ),
         ),
       ),

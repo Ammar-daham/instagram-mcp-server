@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { div } from "../element.js";
 import { column, frame, heading } from "../layout.js";
+import type { Locale } from "../locale.js";
 import { cardText, slideField } from "../text.js";
 import { tint, type Theme } from "../theme.js";
 
@@ -16,17 +17,14 @@ export const followSchema = z.strictObject({
 });
 export type FollowContent = z.infer<typeof followSchema>;
 
-const DEFAULT_ACTIONS = ["Save this for later", "Share it with a friend", "Follow for more"];
-
-export function followCard(c: FollowContent, theme: Theme) {
+export function followCard(c: FollowContent, theme: Theme, t: Locale) {
   return frame(
     theme,
+    t,
     { slide: c.slide },
     column(
       { flexGrow: 1, justifyContent: "center", alignItems: "center" },
-      heading(c.headline ?? "Follow for daily nutrition tips", 84, theme.text, {
-        textAlign: "center",
-      }),
+      heading(c.headline ?? t.text.followHeadline, 84, theme.text, t, { textAlign: "center" }),
       theme.handle
         ? div(
             {
@@ -37,13 +35,15 @@ export function followCard(c: FollowContent, theme: Theme) {
               fontWeight: 800,
               padding: "24px 56px",
               borderRadius: 999,
+              direction: "ltr",
+              fontFamily: "Inter",
             },
             theme.handle,
           )
         : null,
       column(
         { marginTop: 72, gap: 20, alignItems: "stretch", width: 760 },
-        ...(c.actions ?? DEFAULT_ACTIONS).map((action) =>
+        ...(c.actions ?? t.text.followActions).map((action) =>
           div(
             {
               justifyContent: "center",

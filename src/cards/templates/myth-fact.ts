@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { div } from "../element.js";
 import { column, frame, pill } from "../layout.js";
+import type { Locale } from "../locale.js";
 import { cardText, slideField } from "../text.js";
 import { tint, type Theme } from "../theme.js";
 
@@ -13,25 +14,25 @@ export const mythFactSchema = z.strictObject({
 });
 export type MythFactContent = z.infer<typeof mythFactSchema>;
 
-export function mythFactCard(c: MythFactContent, theme: Theme) {
+export function mythFactCard(c: MythFactContent, theme: Theme, t: Locale) {
+  const rtl = t.dir === "rtl";
+  const mythSize = rtl && c.myth.length > 70 ? 40 : 48;
+  const factSize = c.fact.length > 140 ? (rtl ? 38 : 44) : rtl && c.fact.length > 90 ? 46 : 52;
+  const boxPad = rtl && c.fact.length > 140 ? 44 : 52;
   return frame(
     theme,
-    { label: c.label ?? "Myth vs fact", slide: c.slide },
+    t,
+    { label: c.label ?? t.text.mythFactLabel, slide: c.slide },
     column(
       { flexGrow: 1, gap: 40 },
       column(
-        {
-          backgroundColor: tint(theme.highlight, 0.1),
-          borderRadius: 36,
-          padding: 52,
-          gap: 24,
-        },
-        div({}, pill("Myth", theme.highlight, "#FFFFFF")),
+        { backgroundColor: tint(theme.highlight, 0.1), borderRadius: 36, padding: boxPad, gap: 24 },
+        div({}, pill(t.text.myth, theme.highlight, "#FFFFFF", t)),
         div(
           {
-            fontSize: 48,
+            fontSize: mythSize,
             fontWeight: 600,
-            lineHeight: 1.25,
+            lineHeight: t.lineHeight(1.25),
             color: theme.muted,
             textDecoration: "line-through",
             textDecorationColor: theme.highlight,
@@ -43,14 +44,24 @@ export function mythFactCard(c: MythFactContent, theme: Theme) {
         {
           backgroundColor: tint(theme.primary, 0.12),
           borderRadius: 36,
-          padding: 52,
+          padding: boxPad,
           gap: 24,
           flexGrow: 1,
         },
-        div({}, pill("Fact", theme.primary, "#FFFFFF")),
-        div({ fontSize: c.fact.length > 140 ? 44 : 52, fontWeight: 800, lineHeight: 1.25 }, c.fact),
+        div({}, pill(t.text.fact, theme.primary, "#FFFFFF", t)),
+        div(
+          {
+            fontSize: factSize,
+            fontWeight: 800,
+            lineHeight: t.lineHeight(1.25),
+          },
+          c.fact,
+        ),
         c.source
-          ? div({ fontSize: 28, color: theme.muted, marginTop: "auto" }, `Source: ${c.source}`)
+          ? div(
+              { fontSize: 28, color: theme.muted, marginTop: "auto" },
+              `${t.text.source}: ${c.source}`,
+            )
           : null,
       ),
     ),

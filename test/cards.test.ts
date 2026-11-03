@@ -6,10 +6,11 @@ import { describe, expect, it } from "vitest";
 import { previewJpeg, renderCard, renderSvg } from "../src/cards/render.js";
 import {
   CardContentError,
+  stripTashkeel,
   TEMPLATE_NAMES,
   type TemplateName,
 } from "../src/cards/templates/index.js";
-import { unsupportedChars } from "../src/cards/text.js";
+import { scriptCounts, unsupportedChars } from "../src/cards/text.js";
 import { DEFAULT_THEME, loadTheme, tint } from "../src/cards/theme.js";
 
 const theme = { ...DEFAULT_THEME, handle: "@body.blooms.ai" };
@@ -176,5 +177,110 @@ describe("theme", () => {
 
   it("tints colours", () => {
     expect(tint("#2E7D5B", 0.5)).toBe("rgba(46, 125, 91, 0.5)");
+  });
+});
+
+const SAMPLES_AR: Record<TemplateName, Record<string, unknown>> = {
+  tip: {
+    title: "٣ طرق سهلة لتناول المزيد من الألياف",
+    points: ["استبدل الخبز الأبيض بخبز القمح الكامل.", "أضف التوت إلى فطورك."],
+    slide: "2/7",
+  },
+  macros: {
+    title: "وعاء الزبادي اليوناني",
+    serving: "وعاء واحد (350 غ)",
+    calories: 420,
+    protein_g: 32,
+    carbs_g: 48,
+    fat_g: 11,
+    note: "البروتين على الفطور يبقيك شبعانا حتى الغداء.",
+  },
+  recipe: {
+    title: "شوفان البروتين الليلي",
+    time: "5 دقائق",
+    ingredients: ["50 غ شوفان", "150 غ زبادي يوناني"],
+    steps: ["اخلط المكونات في برطمان.", "اتركه في الثلاجة طوال الليل."],
+  },
+  myth_fact: { myth: "تناول الدهون يجعلك سمينا.", fact: "زيادة الوزن تأتي من فائض السعرات." },
+  cover: { title: "٥ وجبات فطور غنية بالبروتين", kicker: "احفظ المنشور" },
+  follow: {},
+};
+
+/** x of the first <text> containing `needle` (satori splits text into words). */
+const xOf = (svg: string, needle: string) => {
+  const m = [...svg.matchAll(/<text x="([\d.]+)"[^>]*>([^<]*)<\/text>/g)].find((t) =>
+    t[2]!.includes(needle),
+  );
+  if (!m) throw new Error(`"${needle}" not found in SVG`);
+  return Number(m[1]);
+};
+
+describe("Arabic cards", () => {
+  it.each(TEMPLATE_NAMES)("%s renders a stable RTL layout", async (name) => {
+    const svg = await renderSvg(name, SAMPLES_AR[name], theme, {
+      embedFont: false,
+      language: "ar",
+    });
+    has(svg, "@body.blooms.ai");
+    expect(svg).toMatchSnapshot();
+  });
+
+  it("uses Arabic labels and mirrors the layout", async () => {
+    const svg = await renderSvg("tip", SAMPLES_AR.tip, theme, { embedFont: false, language: "ar" });
+    has(svg, "نصيحة غذائية");
+    // The number badge sits to the right of its tip text, and the pill to the right of "2/7".
+    expect(xOf(svg, "1")).toBeGreaterThan(xOf(svg, "استبدل"));
+    expect(xOf(svg, "نصيحة")).toBeGreaterThan(xOf(svg, "/"));
+    // "2/7" stays left-to-right instead of being reordered to "7/2".
+    has(svg, "2/7");
+  });
+
+  it("translates the built-in macro labels", async () => {
+    const svg = await renderSvg("macros", SAMPLES_AR.macros, theme, {
+      embedFont: false,
+      language: "ar",
+    });
+    for (const text of ["بروتين", "كربوهيدرات", "دهون", "سعرة حرارية", "32 غ", "31%"]) {
+      has(svg, text);
+    }
+  });
+
+  it("renders an Arabic JPEG", async () => {
+    const { jpeg } = await renderCard("cover", SAMPLES_AR.cover, theme, "ar");
+    expect(await sharp(jpeg).metadata()).toMatchObject({ width: 1080, height: 1350 });
+  });
+
+  it("rejects content in the other language", async () => {
+    await expect(renderSvg("tip", SAMPLES_AR.tip, theme)).rejects.toThrow(
+      /set to English but its text is mostly Arabic/,
+    );
+    await expect(renderSvg("tip", SAMPLES.tip, theme, { language: "ar" })).rejects.toThrow(
+      /set to Arabic but its text is mostly English/,
+    );
+  });
+
+  it("allows Latin terms and numbers inside Arabic text", async () => {
+    await expect(
+      renderSvg(
+        "tip",
+        { title: "فوائد أوميغا 3 (Omega-3)", points: ["تناول السلمون مرتين أسبوعيا."] },
+        theme,
+        { language: "ar" },
+      ),
+    ).resolves.toMatch(/^<svg/);
+  });
+
+  it("removes tashkeel before rendering", async () => {
+    expect(stripTashkeel("يوميًّا شبعانًا مُفِيد")).toBe("يوميا شبعانا مفيد");
+    const svg = await renderSvg("tip", { title: "كُلْ يوميًّا", points: ["مُفِيد"] }, theme, {
+      embedFont: false,
+      language: "ar",
+    });
+    has(svg, "كل يوميا");
+  });
+
+  it("counts scripts", () => {
+    expect(scriptCounts("بروتين protein 32")).toEqual({ arabic: 6, latin: 7 });
+    expect(unsupportedChars("بروتين ٣٢ ، ؟")).toEqual([]);
   });
 });

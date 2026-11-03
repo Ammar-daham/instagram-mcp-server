@@ -128,6 +128,7 @@ describe("MCP server", () => {
       const result = await client.callTool({
         name: "render_card",
         arguments: {
+          language: "en",
           template: "myth_fact",
           content: { myth: "Carbs are bad.", fact: "Fibre-rich carbs fuel you." },
         },
@@ -140,8 +141,13 @@ describe("MCP server", () => {
       expect(image).toMatchObject({ type: "image", mimeType: "image/jpeg" });
       expect((await sharp(Buffer.from(image.data, "base64")).metadata()).width).toBe(540);
       const meta = JSON.parse(info.text);
-      expect(meta).toMatchObject({ template: "myth_fact", width: 1080, height: 1350 });
-      expect(meta.path).toBe(path.join(outDir, "20261103T102030-myth-fact.jpg"));
+      expect(meta).toMatchObject({
+        language: "en",
+        template: "myth_fact",
+        width: 1080,
+        height: 1350,
+      });
+      expect(meta.path).toBe(path.join(outDir, "20261103T102030-myth-fact-en.jpg"));
       expect((await sharp(await readFile(meta.path)).metadata()).height).toBe(1350);
     });
 
@@ -149,7 +155,7 @@ describe("MCP server", () => {
       const client = await connect({ CARD_OUTPUT_DIR: outDir });
       const result = await client.callTool({
         name: "render_card",
-        arguments: { template: "follow", content: {}, file_name: "end-slide" },
+        arguments: { language: "en", template: "follow", content: {}, file_name: "end-slide" },
       });
       const info = (result.content as { text?: string }[])[1]!;
       expect(JSON.parse(info.text!).path).toBe(path.join(outDir, "end-slide.jpg"));
@@ -159,10 +165,36 @@ describe("MCP server", () => {
       const client = await connect({ CARD_OUTPUT_DIR: outDir });
       const result = await client.callTool({
         name: "render_card",
-        arguments: { template: "tip", content: { title: "Hi" } },
+        arguments: { language: "en", template: "tip", content: { title: "Hi" } },
       });
       expect(result.isError).toBe(true);
       expect(text(result)).toMatch(/Invalid content for the "tip" card:\n- points:/);
+    });
+
+    it("renders Arabic cards", async () => {
+      const client = await connect({ CARD_OUTPUT_DIR: outDir });
+      const result = await client.callTool({
+        name: "render_card",
+        arguments: { language: "ar", template: "follow", content: {} },
+      });
+      expect(result.isError).toBeFalsy();
+      const info = JSON.parse((result.content as { text?: string }[])[1]!.text!);
+      expect(info).toMatchObject({ language: "ar", template: "follow" });
+      expect(info.path).toBe(path.join(outDir, "20261103T102030-follow-ar.jpg"));
+    });
+
+    it("requires a language", async () => {
+      const client = await connect({ CARD_OUTPUT_DIR: outDir });
+      const { tools } = await client.listTools();
+      const tool = tools.find((t) => t.name === "render_card")!;
+      expect(tool.inputSchema.required).toContain("language");
+      expect(tool.description).toMatch(/LANGUAGE FIRST/);
+      const result = await client.callTool({
+        name: "render_card",
+        arguments: { template: "follow", content: {} },
+      });
+      expect(result.isError).toBe(true);
+      expect(text(result)).toMatch(/language/);
     });
   });
 });

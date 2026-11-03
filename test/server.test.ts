@@ -1,7 +1,11 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import sharp from "sharp";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createContextFactory } from "../src/context.js";
 import { createServer, SERVER_NAME } from "../src/server.js";
 import { API, BASE, noSleep, useMsw } from "./helpers.js";
@@ -9,7 +13,10 @@ import { API, BASE, noSleep, useMsw } from "./helpers.js";
 const server = useMsw();
 
 async function connect(env: NodeJS.ProcessEnv) {
-  const mcp = createServer(createContextFactory(env, { sleep: noSleep }));
+  const mcp = createServer(createContextFactory(env, { sleep: noSleep }), {
+    env,
+    now: () => new Date("2026-11-03T10:20:30Z"),
+  });
   const client = new Client({ name: "test", version: "0" });
   const [a, b] = InMemoryTransport.createLinkedPair();
   await Promise.all([mcp.connect(a), client.connect(b)]);
@@ -29,7 +36,11 @@ describe("MCP server", () => {
     const client = await connect(env);
     expect(client.getServerVersion()?.name).toBe(SERVER_NAME);
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["check_token", "get_account_info"]);
+    expect(tools.map((t) => t.name).sort()).toEqual([
+      "check_token",
+      "get_account_info",
+      "render_card",
+    ]);
   });
 
   it("get_account_info returns the account", async () => {
@@ -103,6 +114,55 @@ describe("MCP server", () => {
       user_id: "17841400000000001",
       username: "body.blooms.ai",
       followers_count: 28,
+    });
+  });
+
+  describe("render_card", () => {
+    let outDir: string;
+    beforeEach(async () => (outDir = await mkdtemp(path.join(tmpdir(), "ig-cards-"))));
+    afterEach(() => rm(outDir, { recursive: true, force: true }));
+
+    it("renders, saves the JPEG and returns a preview image", async () => {
+      // No IG token needed: rendering is offline.
+      const client = await connect({ CARD_OUTPUT_DIR: outDir, BRAND_HANDLE: "body.blooms.ai" });
+      const result = await client.callTool({
+        name: "render_card",
+        arguments: {
+          template: "myth_fact",
+          content: { myth: "Carbs are bad.", fact: "Fibre-rich carbs fuel you." },
+        },
+      });
+      expect(result.isError).toBeFalsy();
+      const [image, info] = result.content as [
+        { type: string; data: string; mimeType: string },
+        { type: string; text: string },
+      ];
+      expect(image).toMatchObject({ type: "image", mimeType: "image/jpeg" });
+      expect((await sharp(Buffer.from(image.data, "base64")).metadata()).width).toBe(540);
+      const meta = JSON.parse(info.text);
+      expect(meta).toMatchObject({ template: "myth_fact", width: 1080, height: 1350 });
+      expect(meta.path).toBe(path.join(outDir, "20261103T102030-myth-fact.jpg"));
+      expect((await sharp(await readFile(meta.path)).metadata()).height).toBe(1350);
+    });
+
+    it("uses the given file name", async () => {
+      const client = await connect({ CARD_OUTPUT_DIR: outDir });
+      const result = await client.callTool({
+        name: "render_card",
+        arguments: { template: "follow", content: {}, file_name: "end-slide" },
+      });
+      const info = (result.content as { text?: string }[])[1]!;
+      expect(JSON.parse(info.text!).path).toBe(path.join(outDir, "end-slide.jpg"));
+    });
+
+    it("returns validation problems as a tool error", async () => {
+      const client = await connect({ CARD_OUTPUT_DIR: outDir });
+      const result = await client.callTool({
+        name: "render_card",
+        arguments: { template: "tip", content: { title: "Hi" } },
+      });
+      expect(result.isError).toBe(true);
+      expect(text(result)).toMatch(/Invalid content for the "tip" card:\n- points:/);
     });
   });
 });

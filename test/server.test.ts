@@ -78,4 +78,31 @@ describe("MCP server", () => {
     expect(result.isError).toBe(true);
     expect(text(result)).toMatch(/IG_ACCESS_TOKEN is missing/);
   });
+
+  it("get_account_info reads the account by ID with a Facebook-login token", async () => {
+    server.use(
+      http.get(`${BASE}/v24.0/17841400000000001`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get("fields")).toBe(
+          "id,username,name,followers_count,follows_count,media_count",
+        );
+        return HttpResponse.json({
+          id: "17841400000000001",
+          username: "body.blooms.ai",
+          followers_count: 28,
+        });
+      }),
+    );
+    const client = await connect({
+      ...env,
+      IG_ACCESS_TOKEN: "EAAT",
+      IG_USER_ID: "17841400000000001",
+    });
+    const result = await client.callTool({ name: "get_account_info", arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(text(result))).toEqual({
+      user_id: "17841400000000001",
+      username: "body.blooms.ai",
+      followers_count: 28,
+    });
+  });
 });

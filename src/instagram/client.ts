@@ -45,6 +45,8 @@ export interface ClientOptions {
 interface RequestOptions {
   /** Prefix the path with the API version (false for e.g. /refresh_access_token). */
   versioned?: boolean;
+  /** Send the client's access token (false when the params carry their own credentials). */
+  auth?: boolean;
 }
 
 // Graph error codes that mean "try again later": unknown/service errors and rate limits.
@@ -85,13 +87,15 @@ export class InstagramClient {
     method: "GET" | "POST",
     path: string,
     params: Params,
-    { versioned = true }: RequestOptions,
+    { versioned = true, auth = true }: RequestOptions,
   ): Promise<T> {
     const url = new URL(
       `${this.baseUrl}${versioned ? `/${this.apiVersion}` : ""}/${path.replace(/^\/+/, "")}`,
     );
     const form = new URLSearchParams();
-    for (const [key, value] of Object.entries({ ...params, access_token: this.accessToken })) {
+    for (const [key, value] of Object.entries(
+      auth ? { ...params, access_token: this.accessToken } : params,
+    )) {
       if (value === undefined) continue;
       if (method === "GET") url.searchParams.set(key, String(value));
       else form.set(key, String(value));

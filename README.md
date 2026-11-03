@@ -10,7 +10,8 @@ Instagram API.
 
 - Node.js 22+
 - An Instagram Business (or Creator) account
-- A Meta developer app and access token: follow [docs/META_SETUP.md](docs/META_SETUP.md)
+- A Meta developer app and access token: follow [docs/META_SETUP.md](docs/META_SETUP.md).
+  Both Instagram-login (`IGAA…`) and Facebook-login (`EAA…`) tokens work.
 
 ## Setup
 

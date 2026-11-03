@@ -5,6 +5,7 @@ import type { Config } from "../src/config.js";
 import { InstagramClient } from "../src/instagram/client.js";
 import {
   checkToken,
+  FACEBOOK_PERMISSIONS,
   fingerprint,
   refreshAccessToken,
   resolveAccessToken,
@@ -20,6 +21,8 @@ beforeEach(async () => ({ config, cleanup } = await tempConfig()));
 afterEach(() => cleanup());
 
 const NOW = new Date("2026-11-03T00:00:00Z");
+const IG = { loginType: "instagram" as const, userId: undefined };
+const FB = { loginType: "facebook" as const, userId: "17841400000000001" };
 const client = (token: string) =>
   new InstagramClient({ accessToken: token, baseUrl: BASE, sleep: noSleep });
 
@@ -113,6 +116,7 @@ describe("checkToken", () => {
     const status = await checkToken(
       client("T"),
       { accessToken: "T", source: "env", expiresAt: undefined, refreshedAt: undefined },
+      IG,
       NOW,
     );
     expect(status).toMatchObject({ valid: true, username: "eatwell", userId: "42", source: "env" });
@@ -128,11 +132,11 @@ describe("checkToken", () => {
       expiresAt: new Date(NOW.getTime() + days * 86_400_000),
       refreshedAt: NOW,
     });
-    await expect(checkToken(client("T"), token(45), NOW)).resolves.toMatchObject({
+    await expect(checkToken(client("T"), token(45), IG, NOW)).resolves.toMatchObject({
       daysLeft: 45,
       advice: expect.stringMatching(/expires in 45 days/),
     });
-    await expect(checkToken(client("T"), token(3), NOW)).resolves.toMatchObject({
+    await expect(checkToken(client("T"), token(3), IG, NOW)).resolves.toMatchObject({
       daysLeft: 3,
       advice: expect.stringMatching(/Run `npm run token:refresh` now/),
     });
@@ -147,9 +151,136 @@ describe("checkToken", () => {
     const status = await checkToken(
       client("T"),
       { accessToken: "T", source: "env", expiresAt: undefined, refreshedAt: undefined },
+      IG,
       NOW,
     );
     expect(status).toMatchObject({ valid: false, source: "env" });
     expect(status.advice).toMatch(/rejected the access token/);
+  });
+});
+
+describe("Facebook login", () => {
+  const envToken = {
+    accessToken: "EAAT",
+    source: "env" as const,
+    expiresAt: undefined,
+    refreshedAt: undefined,
+  };
+  const igUser = () =>
+    http.get(`${API}/${FB.userId}`, ({ request }) => {
+      expect(new URL(request.url).searchParams.get("fields")).toBe("id,username");
+      return HttpResponse.json({ id: FB.userId, username: "body.blooms.ai" });
+    });
+  const debugToken = (data: object) =>
+    http.get(`${API}/debug_token`, ({ request }) => {
+      const url = new URL(request.url);
+      expect(url.searchParams.get("input_token")).toBe("EAAT");
+      expect(url.searchParams.get("access_token")).toBe("EAAT");
+      return HttpResponse.json({ data });
+    });
+
+  it("checkToken reads expiry and permissions from debug_token", async () => {
+    server.use(
+      igUser(),
+      debugToken({
+        is_valid: true,
+        expires_at: NOW.getTime() / 1000 + 50 * 86_400,
+        scopes: ["instagram_basic", "instagram_content_publish"],
+      }),
+    );
+    const status = await checkToken(client("EAAT"), envToken, FB, NOW);
+    expect(status).toMatchObject({
+      valid: true,
+      loginType: "facebook",
+      username: "body.blooms.ai",
+      userId: FB.userId,
+      daysLeft: 50,
+      missingPermissions: ["instagram_manage_insights", "pages_read_engagement"],
+    });
+    expect(status.advice).toMatch(/Missing permissions needed by later features/);
+  });
+
+  it("checkToken reports never-expiring tokens", async () => {
+    server.use(
+      igUser(),
+      debugToken({ is_valid: true, expires_at: 0, scopes: FACEBOOK_PERMISSIONS }),
+    );
+    const status = await checkToken(client("EAAT"), envToken, FB, NOW);
+    expect(status).toMatchObject({ valid: true, expiresAt: "never", missingPermissions: [] });
+    expect(status.daysLeft).toBeUndefined();
+    expect(status.advice).toBe("Token works and does not expire.");
+  });
+
+  it("checkToken reports an invalid token", async () => {
+    server.use(debugToken({ is_valid: false, error: { message: "Session expired" } }));
+    const status = await checkToken(client("EAAT"), envToken, FB, NOW);
+    expect(status).toMatchObject({ valid: false, loginType: "facebook" });
+    expect(status.advice).toMatch(/no longer valid: Session expired/);
+  });
+
+  it("checkToken uses an app access token when app credentials are set", async () => {
+    server.use(
+      igUser(),
+      http.get(`${API}/debug_token`, ({ request }) => {
+        const q = new URL(request.url).searchParams;
+        expect(q.get("input_token")).toBe("EAAT");
+        expect(q.get("access_token")).toBe("app1|shh");
+        return HttpResponse.json({ data: { is_valid: true, expires_at: 0 } });
+      }),
+    );
+    const status = await checkToken(
+      client("EAAT"),
+      envToken,
+      { ...FB, appId: "app1", appSecret: "shh" },
+      NOW,
+    );
+    expect(status).toMatchObject({ valid: true, expiresAt: "never" });
+  });
+
+  it("checkToken still verifies the account when debug_token is not allowed", async () => {
+    server.use(
+      igUser(),
+      http.get(`${API}/debug_token`, () =>
+        HttpResponse.json(
+          { error: { message: "You must provide an app access token", code: 100 } },
+          { status: 400 },
+        ),
+      ),
+    );
+    const status = await checkToken(client("EAAT"), envToken, FB, NOW);
+    expect(status).toMatchObject({ valid: true, username: "body.blooms.ai" });
+    expect(status.expiresAt).toBeUndefined();
+    expect(status.advice).toMatch(/add META_APP_ID and META_APP_SECRET/);
+  });
+
+  it("refresh exchanges the token with the app credentials", async () => {
+    const fbConfig = { ...config, ...FB, accessToken: "EAAT", appId: "app1", appSecret: "shh" };
+    server.use(
+      http.get(`${API}/oauth/access_token`, ({ request }) => {
+        const q = new URL(request.url).searchParams;
+        expect(Object.fromEntries(q)).toEqual({
+          grant_type: "fb_exchange_token",
+          client_id: "app1",
+          client_secret: "shh",
+          fb_exchange_token: "EAAT",
+        });
+        return HttpResponse.json({ access_token: "EAANEW", token_type: "bearer" });
+      }),
+    );
+    const stored = await refreshAccessToken(fbConfig, {
+      now: NOW,
+      clientOptions: { sleep: noSleep },
+    });
+    expect(stored).toMatchObject({ accessToken: "EAANEW", expiresAt: null });
+    await expect(resolveAccessToken(fbConfig)).resolves.toMatchObject({
+      accessToken: "EAANEW",
+      expiresAt: null,
+    });
+  });
+
+  it("refresh explains missing app credentials", async () => {
+    await expect(refreshAccessToken({ ...config, ...FB, accessToken: "EAAT" })).rejects.toThrow(
+      /META_APP_ID and META_APP_SECRET/,
+    );
   });
 });

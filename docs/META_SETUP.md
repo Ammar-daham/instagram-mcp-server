@@ -5,6 +5,15 @@ This guide walks you through getting the two values the server needs:
 - `IG_ACCESS_TOKEN`: a long-lived token (valid for 60 days) that lets the server act for your account
 - `IG_USER_ID`: your account's numeric Instagram user ID
 
+There are two kinds of token, and the server accepts both:
+
+| Token starts with | Comes from                                                          | When to use it                                                                                |
+| ----------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `IGAA…`           | **Instagram login** (steps 3–5)                                     | The simplest route, if Meta lets you add your account                                         |
+| `EAA…`            | **Facebook login** (see [Option B](#option-b-facebook-login-token)) | Your account is tied to a Facebook Page or Business Portfolio, e.g. because you boosted posts |
+
+The server detects the kind from the token, so there's nothing extra to configure.
+
 It takes about 15 minutes. You don't need to publish a Meta app or go through App Review: the app
 stays in **Development mode** and only ever manages your own account.
 
@@ -33,7 +42,9 @@ stays in **Development mode** and only ever manages your own account.
 ## 3. Add Instagram to the app
 
 1. On the app dashboard, find **Instagram** in the product list and click **Set up**.
-2. Choose **API setup with Instagram login** (not "with Facebook login").
+2. Choose **API setup with Instagram login**. Newer dashboards may call it
+   **API setup with Unified login**: pick that one. The permissions it asks for should be named
+   `instagram_business_*`, and the token it generates starts with `IGAA`.
 
 ## 4. Add yourself as an Instagram tester
 
@@ -99,6 +110,37 @@ npm run token:refresh
 
 If the token has already expired, generate a new one (step 5) and put it in `.env`. The server
 notices the new token and stops using the old refreshed one.
+
+## Option B: Facebook-login token
+
+Use this if adding your Instagram account fails with **"Failed to remove the existing ownership
+for the Instagram account"**. That means a Facebook Page or Business Portfolio already owns the
+account (this happens automatically when you boost posts or run ads), so the Instagram-login
+setup can't claim it.
+
+1. Make sure your Instagram account is connected to a Facebook Page you manage.
+2. In your app, choose **API setup with Facebook login**, or open the
+   [Graph API Explorer](https://developers.facebook.com/tools/explorer/) with your app selected.
+3. Generate a **user token** with these permissions: `instagram_basic`,
+   `instagram_content_publish`, `instagram_manage_insights`, `pages_show_list`,
+   `pages_read_engagement` (and `instagram_manage_comments` for later).
+4. Find your Instagram account ID: in the Explorer, run
+   `me/accounts?fields=name,instagram_business_account` and copy the
+   `instagram_business_account.id` (a long number starting with `1784`).
+5. Put the values in `.env`:
+
+   ```
+   IG_ACCESS_TOKEN=EAA...your token...
+   IG_USER_ID=17841400000000000
+   META_APP_ID=...        # App settings → Basic
+   META_APP_SECRET=...    # App settings → Basic → Show
+   ```
+
+   `IG_USER_ID` is required with this kind of token. The app ID and secret are optional, but
+   without them `check_token` can't report the expiry and `npm run token:refresh` can't work.
+
+Tokens from the Explorer are short-lived (about an hour). Run `npm run token:refresh` straight
+away to exchange it for a long-lived (~60 day) one; `check_token` then shows its expiry.
 
 ## Troubleshooting
 

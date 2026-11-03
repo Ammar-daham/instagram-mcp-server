@@ -16,7 +16,7 @@ export function registerGetAccountInfo(server: McpServer, getContext: ContextFac
     () =>
       toolResult(async () => {
         const { client, config } = await getContext();
-        const info = await getAccountInfo(client);
+        const info = await getAccountInfo(client, config);
         if (config.userId && info.user_id && config.userId !== info.user_id) {
           return {
             ...info,

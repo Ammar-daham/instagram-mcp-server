@@ -26,6 +26,9 @@ export async function tempConfig(overrides: Partial<Config> = {}): Promise<{
     config: {
       accessToken: "ENV_TOKEN",
       userId: undefined,
+      loginType: "instagram",
+      appId: undefined,
+      appSecret: undefined,
       apiVersion: "v24.0",
       baseUrl: BASE,
       tokenStorePath: path.join(dir, "token.json"),

@@ -15,8 +15,8 @@ export function registerCheckToken(server: McpServer, getContext: ContextFactory
     },
     () =>
       toolResult(async () => {
-        const { client, token } = await getContext();
-        return checkToken(client, token);
+        const { client, token, config } = await getContext();
+        return checkToken(client, token, config);
       }),
   );
 }

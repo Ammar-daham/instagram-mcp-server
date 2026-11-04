@@ -37,10 +37,37 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 
 ### Tools
 
-| Tool               | What it does                                                                   |
-| ------------------ | ------------------------------------------------------------------------------ |
-| `check_token`      | Checks the token works, which account it belongs to, and days until it expires |
-| `get_account_info` | Username, name, account type, followers, following, post count                 |
+| Tool               | What it does                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `check_token`      | Checks the token works, which account it belongs to, and days until it expires     |
+| `get_account_info` | Username, name, account type, followers, following, post count                     |
+| `render_card`      | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview |
+
+### Cards
+
+`render_card` makes cards in **English or Arabic**. Claude asks which language first if you
+haven't said. Arabic cards are laid out right-to-left with Arabic labels (e.g. "نصيحة غذائية",
+"القيم الغذائية") in IBM Plex Sans Arabic. Short-vowel marks (tashkeel) are left out for clean
+rendering.
+
+Templates: `tip`, `macros`, `recipe`, `myth_fact`, `cover` (carousel cover) and `follow`
+("follow for more" end slide). Ask Claude for a card, e.g. "make an Arabic tip card about
+drinking more water" or "make a macros card for a Greek yogurt bowl: 420 kcal, 32 g protein,
+48 g carbs, 11 g fat", and it previews it in chat.
+
+Cards are 1080×1350 (4:5 portrait, the tallest format the feed shows) and use the Inter and IBM
+Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so it always fits; emoji aren't drawn on cards
+(put them in the caption). Set your brand with these optional variables:
+
+| Variable                                          | Default            | Used for                                              |
+| ------------------------------------------------- | ------------------ | ----------------------------------------------------- |
+| `BRAND_HANDLE`                                    | none               | Footer and the "follow" slide, e.g. `@body.blooms.ai` |
+| `BRAND_PRIMARY`                                   | `#2E7D5B`          | Pills, numbers, cover background, protein bar         |
+| `BRAND_ACCENT`                                    | `#E9964A`          | Highlights, carbs bar                                 |
+| `BRAND_HIGHLIGHT`                                 | `#D0645A`          | "Myth" box, fat bar                                   |
+| `BRAND_BACKGROUND` / `BRAND_TEXT` / `BRAND_MUTED` | cream / ink / grey | Card colours                                          |
+| `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer          |
+| `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                        |
 
 ### Keeping the token valid
 

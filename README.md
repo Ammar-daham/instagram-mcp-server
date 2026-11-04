@@ -37,13 +37,16 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 
 ### Tools
 
-| Tool               | What it does                                                                                    |
-| ------------------ | ----------------------------------------------------------------------------------------------- |
-| `check_token`      | Checks the token works, which account it belongs to, and days until it expires                  |
-| `get_account_info` | Username, name, account type, followers, following, post count                                  |
-| `render_card`      | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview              |
-| `upload_image`     | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                |
-| `delete_image`     | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working |
+| Tool                           | What it does                                                                                    |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `check_token`                  | Checks the token works, which account it belongs to, and days until it expires                  |
+| `get_account_info`             | Username, name, account type, followers, following, post count                                  |
+| `render_card`                  | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview              |
+| `upload_image`                 | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                |
+| `delete_image`                 | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working |
+| `publish_post`                 | Publishes one image with a caption (dry run unless `confirm: true`)                             |
+| `publish_carousel`             | Publishes 2–10 images as a carousel (dry run unless `confirm: true`)                            |
+| `create_and_publish_card_post` | Renders 1–10 cards, previews them all, and publishes on `confirm: true`                         |
 
 ### Cards
 
@@ -71,6 +74,31 @@ Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so i
 | `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer          |
 | `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                        |
 
+### Publishing
+
+Nothing is posted without your approval. Every publishing tool runs as a **dry run** unless it's
+called with `confirm: true`: it validates the caption (max 2,200 characters, 30 hashtags,
+20 mentions) and images (JPEG, max 8 MB, aspect ratio between 4:5 and 1.91:1), checks
+Instagram's limit of 100 posts per 24 hours, and returns a summary (and, for card posts, a
+preview of every slide) without uploading anything. Claude shows you that and only publishes
+after you approve.
+
+On `confirm: true`, the cards are uploaded to Cloudinary under random names, Instagram
+fetches them, the post goes live, and the uploads are **deleted right away**, so nothing stays
+public except the Instagram post. If publishing fails, the uploads are deleted too. Pass
+`keep_uploads: true` to keep them.
+
+Try: "Make a 5-slide Arabic carousel about high-protein breakfasts and publish it" → Claude
+renders the slides, shows the preview and caption, and waits for your OK.
+
+Publishing a carousel can take 20–60 seconds (Instagram processes each slide). The tools send
+progress updates while they work. If the client cancels or times out before the final publish
+step, nothing is posted and the uploads are deleted. In the MCP Inspector, keep **Reset Timeout
+on Progress** enabled (Configuration), or raise **Request Timeout** to e.g. `120000`.
+
+Publishing needs the token permissions `instagram_content_publish` (Facebook login) or
+`instagram_business_content_publish` (Instagram login), see [docs/META_SETUP.md](docs/META_SETUP.md).
+
 ### Image hosting (Cloudinary)
 
 Instagram only publishes images from a public HTTPS URL, so cards are uploaded to
@@ -96,9 +124,9 @@ opens publicly. Uploaded images are public, so `upload_image` only accepts JPEGs
 Instagram's limit) from `out/`, plus any folders you list in `UPLOAD_ALLOWED_DIRS`.
 Re-uploading a file with the same name replaces it.
 
-Uploaded images stay public until deleted. Once a post is live, Instagram has its own copy, so
-the upload is no longer needed: ask Claude to delete it (`delete_image` with the URL), and the
-publishing tools will do this automatically. Deleting also purges Cloudinary's CDN cache, so
+The publishing tools upload and delete images by themselves. `upload_image` is only needed to
+get a URL by hand; such uploads stay public until deleted (`delete_image` with the URL, or
+automatically when that URL is published with `publish_post`/`publish_carousel`). Deleting also purges Cloudinary's CDN cache, so
 the link stops working, and only images in the server's Cloudinary folder (`instagram/` by
 default) can be deleted. Deleting never affects the published Instagram post.
 

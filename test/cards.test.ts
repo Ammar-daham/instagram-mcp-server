@@ -270,6 +270,23 @@ describe("Arabic cards", () => {
     ).resolves.toMatch(/^<svg/);
   });
 
+  it("rejects number ranges, which satori shows reversed in Arabic", async () => {
+    await expect(
+      renderSvg("tip", { title: "فيتامين د", points: ["البالغون: 600-800 وحدة."] }, theme, {
+        language: "ar",
+      }),
+    ).rejects.toThrow(/number range "600-800".*"من 600 إلى 800"/);
+    await expect(
+      renderSvg("tip", { title: "فيتامين د", points: ["من 600 إلى 800 وحدة."] }, theme, {
+        language: "ar",
+      }),
+    ).resolves.toMatch(/^<svg/);
+    // English cards are unaffected.
+    await expect(
+      renderSvg("tip", { title: "Vitamin D", points: ["Adults: 600-800 IU."] }, theme),
+    ).resolves.toMatch(/^<svg/);
+  });
+
   it("removes tashkeel before rendering", async () => {
     expect(stripTashkeel("يوميًّا شبعانًا مُفِيد")).toBe("يوميا شبعانا مفيد");
     const svg = await renderSvg("tip", { title: "كُلْ يوميًّا", points: ["مُفِيد"] }, theme, {

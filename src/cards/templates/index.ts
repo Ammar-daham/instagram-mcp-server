@@ -87,6 +87,14 @@ function checkLanguage(name: TemplateName, content: unknown, language: Language)
       `The "${name}" card is set to English but its text is mostly Arabic. Use language "ar" for Arabic cards.`,
     );
   }
+  // Satori's simplified bidi shows "600-800" as "800-600" inside Arabic text.
+  const range = language === "ar" ? collectText(content).match(/\d+\s*[-–—]\s*\d+/) : null;
+  if (range) {
+    throw new CardContentError(
+      `The "${name}" card has the number range "${range[0]}", which renders reversed on Arabic ` +
+        'cards. Write it in words, e.g. "من 600 إلى 800".',
+    );
+  }
   if (language === "ar" && latin > arabic) {
     throw new CardContentError(
       `The "${name}" card is set to Arabic but its text is mostly English. Write the text in Arabic, or use language "en".`,

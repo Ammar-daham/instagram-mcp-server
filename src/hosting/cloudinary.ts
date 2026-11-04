@@ -44,6 +44,17 @@ export class HostingError extends Error {
   override name = "HostingError";
 }
 
+/** Folders images may be uploaded from: the card output folder plus UPLOAD_ALLOWED_DIRS. */
+export function uploadAllowedDirs(env: NodeJS.ProcessEnv = process.env): string[] {
+  const outDir = path.resolve(PROJECT_ROOT, env.CARD_OUTPUT_DIR?.trim() || "out");
+  const extra = (env.UPLOAD_ALLOWED_DIRS ?? "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter(Boolean)
+    .map((d) => path.resolve(PROJECT_ROOT, d));
+  return [outDir, ...extra];
+}
+
 /** Read Cloudinary settings from either CLOUDINARY_URL or the three separate variables. */
 export function loadCloudinaryConfig(env: NodeJS.ProcessEnv = process.env): CloudinaryConfig {
   const cleaned = Object.fromEntries(
@@ -79,19 +90,12 @@ export function loadCloudinaryConfig(env: NodeJS.ProcessEnv = process.env): Clou
     );
   }
 
-  const outDir = path.resolve(PROJECT_ROOT, e.CARD_OUTPUT_DIR ?? "out");
-  const extra = (e.UPLOAD_ALLOWED_DIRS ?? "")
-    .split(",")
-    .map((d) => d.trim())
-    .filter(Boolean)
-    .map((d) => path.resolve(PROJECT_ROOT, d));
-
   return {
     cloudName: cloudName!,
     apiKey: apiKey!,
     apiSecret: apiSecret!,
     folder: e.CLOUDINARY_FOLDER ?? "instagram",
-    allowedDirs: [outDir, ...extra],
+    allowedDirs: uploadAllowedDirs(env),
     apiBaseUrl: (e.CLOUDINARY_API_BASE_URL ?? "https://api.cloudinary.com").replace(/\/+$/, ""),
   };
 }

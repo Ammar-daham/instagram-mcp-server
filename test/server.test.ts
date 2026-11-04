@@ -38,8 +38,11 @@ describe("MCP server", () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       "check_token",
+      "create_and_publish_card_post",
       "delete_image",
       "get_account_info",
+      "publish_carousel",
+      "publish_post",
       "render_card",
       "upload_image",
     ]);

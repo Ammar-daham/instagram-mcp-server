@@ -4,6 +4,7 @@ import type { ContextFactory } from "./context.js";
 import { registerCheckToken } from "./tools/check-token.js";
 import { registerDeleteImage } from "./tools/delete-image.js";
 import { registerGetAccountInfo } from "./tools/get-account-info.js";
+import { registerPublishTools, type PublishToolOptions } from "./tools/publish.js";
 import { registerRenderCard, type RenderCardOptions } from "./tools/render-card.js";
 import { registerUploadImage, type UploadImageOptions } from "./tools/upload-image.js";
 
@@ -14,7 +15,7 @@ export const SERVER_VERSION = version;
 
 export function createServer(
   getContext: ContextFactory,
-  options: RenderCardOptions & UploadImageOptions = {},
+  options: RenderCardOptions & UploadImageOptions & PublishToolOptions = {},
 ): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   registerCheckToken(server, getContext);
@@ -22,5 +23,6 @@ export function createServer(
   registerRenderCard(server, options);
   registerUploadImage(server, options);
   registerDeleteImage(server, options);
+  registerPublishTools(server, getContext, options);
   return server;
 }

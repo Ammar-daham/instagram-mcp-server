@@ -42,6 +42,7 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 | `check_token`      | Checks the token works, which account it belongs to, and days until it expires     |
 | `get_account_info` | Username, name, account type, followers, following, post count                     |
 | `render_card`      | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview |
+| `upload_image`     | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs   |
 
 ### Cards
 
@@ -68,6 +69,32 @@ Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so i
 | `BRAND_BACKGROUND` / `BRAND_TEXT` / `BRAND_MUTED` | cream / ink / grey | Card colours                                          |
 | `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer          |
 | `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                        |
+
+### Image hosting (Cloudinary)
+
+Instagram only publishes images from a public HTTPS URL, so cards are uploaded to
+[Cloudinary](https://cloudinary.com)'s free tier first.
+
+1. Sign up for a free account at <https://cloudinary.com/users/register_free> (no card needed).
+2. In the Cloudinary console, open **Settings → API Keys** (or the dashboard's
+   **Product Environment Credentials**) and copy the **Cloud name**, **API Key** and
+   **API Secret**.
+3. Add them to `.env`:
+
+   ```
+   CLOUDINARY_CLOUD_NAME=your-cloud-name
+   CLOUDINARY_API_KEY=123456789012345
+   CLOUDINARY_API_SECRET=...
+   ```
+
+   Or paste the single `CLOUDINARY_URL=cloudinary://...` value the console shows.
+
+Then ask Claude to "upload that card". `upload_image` returns a URL like
+`https://res.cloudinary.com/<cloud>/image/upload/v…/instagram/<name>.jpg` and checks that it
+opens publicly. Uploaded images are public, so `upload_image` only accepts JPEGs (max 8 MB,
+Instagram's limit) from `out/`, plus any folders you list in `UPLOAD_ALLOWED_DIRS`.
+Re-uploading a file with the same name replaces it. Delete old uploads in the Cloudinary
+**Media Library** whenever you like; posts already published on Instagram aren't affected.
 
 ### Keeping the token valid
 

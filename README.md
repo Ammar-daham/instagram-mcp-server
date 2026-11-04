@@ -37,11 +37,13 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 
 ### Tools
 
-| Tool               | What it does                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| `check_token`      | Checks the token works, which account it belongs to, and days until it expires     |
-| `get_account_info` | Username, name, account type, followers, following, post count                     |
-| `render_card`      | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview |
+| Tool               | What it does                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| `check_token`      | Checks the token works, which account it belongs to, and days until it expires                  |
+| `get_account_info` | Username, name, account type, followers, following, post count                                  |
+| `render_card`      | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview              |
+| `upload_image`     | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                |
+| `delete_image`     | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working |
 
 ### Cards
 
@@ -68,6 +70,37 @@ Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so i
 | `BRAND_BACKGROUND` / `BRAND_TEXT` / `BRAND_MUTED` | cream / ink / grey | Card colours                                          |
 | `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer          |
 | `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                        |
+
+### Image hosting (Cloudinary)
+
+Instagram only publishes images from a public HTTPS URL, so cards are uploaded to
+[Cloudinary](https://cloudinary.com)'s free tier first.
+
+1. Sign up for a free account at <https://cloudinary.com/users/register_free> (no card needed).
+2. In the Cloudinary console, open **Settings → API Keys** (or the dashboard's
+   **Product Environment Credentials**) and copy the **Cloud name**, **API Key** and
+   **API Secret**.
+3. Add them to `.env`:
+
+   ```
+   CLOUDINARY_CLOUD_NAME=your-cloud-name
+   CLOUDINARY_API_KEY=123456789012345
+   CLOUDINARY_API_SECRET=...
+   ```
+
+   Or paste the single `CLOUDINARY_URL=cloudinary://...` value the console shows.
+
+Then ask Claude to "upload that card". `upload_image` returns a URL like
+`https://res.cloudinary.com/<cloud>/image/upload/v…/instagram/<name>.jpg` and checks that it
+opens publicly. Uploaded images are public, so `upload_image` only accepts JPEGs (max 8 MB,
+Instagram's limit) from `out/`, plus any folders you list in `UPLOAD_ALLOWED_DIRS`.
+Re-uploading a file with the same name replaces it.
+
+Uploaded images stay public until deleted. Once a post is live, Instagram has its own copy, so
+the upload is no longer needed: ask Claude to delete it (`delete_image` with the URL), and the
+publishing tools will do this automatically. Deleting also purges Cloudinary's CDN cache, so
+the link stops working, and only images in the server's Cloudinary folder (`instagram/` by
+default) can be deleted. Deleting never affects the published Instagram post.
 
 ### Keeping the token valid
 

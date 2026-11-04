@@ -38,8 +38,10 @@ describe("MCP server", () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       "check_token",
+      "delete_image",
       "get_account_info",
       "render_card",
+      "upload_image",
     ]);
   });
 
@@ -195,6 +197,81 @@ describe("MCP server", () => {
       });
       expect(result.isError).toBe(true);
       expect(text(result)).toMatch(/language/);
+    });
+  });
+
+  describe("upload_image", () => {
+    let outDir: string;
+    beforeEach(async () => (outDir = await mkdtemp(path.join(tmpdir(), "ig-up-"))));
+    afterEach(() => rm(outDir, { recursive: true, force: true }));
+
+    const cloudEnv = () => ({
+      CARD_OUTPUT_DIR: outDir,
+      CLOUDINARY_URL: "cloudinary://k:s@demo",
+      CLOUDINARY_API_BASE_URL: "https://cloudinary.test",
+    });
+    const publicUrl = "https://res.cloudinary.test/demo/image/upload/v1/instagram/end-slide.jpg";
+
+    it("renders, uploads and verifies a card", async () => {
+      server.use(
+        http.post("https://cloudinary.test/v1_1/demo/image/upload", () =>
+          HttpResponse.json({
+            secure_url: publicUrl,
+            public_id: "instagram/end-slide",
+            bytes: 50000,
+            width: 1080,
+            height: 1350,
+            format: "jpg",
+          }),
+        ),
+        http.head(
+          publicUrl,
+          () => new HttpResponse(null, { headers: { "Content-Type": "image/jpeg" } }),
+        ),
+      );
+      const client = await connect(cloudEnv());
+      const rendered = await client.callTool({
+        name: "render_card",
+        arguments: { language: "en", template: "follow", content: {}, file_name: "end-slide" },
+      });
+      const { path: file } = JSON.parse((rendered.content as { text?: string }[])[1]!.text!);
+      const result = await client.callTool({ name: "upload_image", arguments: { path: file } });
+      expect(result.isError).toBeFalsy();
+      expect(JSON.parse(text(result))).toMatchObject({
+        url: publicUrl,
+        width: 1080,
+        height: 1350,
+        publiclyReachable: true,
+      });
+    });
+
+    it("delete_image removes an uploaded card", async () => {
+      server.use(
+        http.post("https://cloudinary.test/v1_1/demo/image/destroy", async ({ request }) => {
+          expect((await request.formData()).get("public_id")).toBe("instagram/end-slide");
+          return HttpResponse.json({ result: "ok" });
+        }),
+      );
+      const client = await connect(cloudEnv());
+      const result = await client.callTool({
+        name: "delete_image",
+        arguments: { image: publicUrl },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(JSON.parse(text(result))).toEqual({
+        publicId: "instagram/end-slide",
+        status: "deleted",
+      });
+    });
+
+    it("explains missing Cloudinary settings", async () => {
+      const client = await connect({ CARD_OUTPUT_DIR: outDir });
+      const result = await client.callTool({
+        name: "upload_image",
+        arguments: { path: path.join(outDir, "x.jpg") },
+      });
+      expect(result.isError).toBe(true);
+      expect(text(result)).toMatch(/Cloudinary isn't configured/);
     });
   });
 });

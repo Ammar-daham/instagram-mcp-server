@@ -47,6 +47,24 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 | `publish_post`                 | Publishes one image with a caption (dry run unless `confirm: true`)                             |
 | `publish_carousel`             | Publishes 2–10 images as a carousel (dry run unless `confirm: true`)                            |
 | `create_and_publish_card_post` | Renders 1–10 cards, previews them all, and publishes on `confirm: true`                         |
+| `suggest_hashtags`             | Curated nutrition hashtag mix (broad, specific, niche) in Arabic, English or both               |
+
+### Prompts
+
+The server also offers **prompts**: ready-made briefs that turn Claude into your content
+strategist. In Claude Code, type `/` and pick them from the list (they appear as
+`/mcp__instagram__nutrition_post` and so on), or just ask in plain language.
+
+| Prompt                | Arguments                                  | What you get                                                    |
+| --------------------- | ------------------------------------------ | --------------------------------------------------------------- |
+| `nutrition_post`      | topic, language?, audience?                | One single-card post: card, hook, caption, hashtags             |
+| `carousel_series`     | topic, language?, slides? (4–8), audience? | Cover + content slides + follow slide, with caption             |
+| `weekly_content_plan` | language?, focus?, start_date?, audience?  | A 7-day plan across tips, recipes, myth-busting, macros and Q&A |
+
+Every prompt asks for the language (Arabic or English) if you leave it empty, follows a
+health-claims guardrail (evidence-based wording, no cure or weight-loss promises, official
+intakes only for supplements, a "not medical advice" line where needed), and ends with a dry
+run: Claude shows you the preview and caption and only publishes after you say yes.
 
 ### Cards
 

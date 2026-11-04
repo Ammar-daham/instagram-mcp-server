@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { captionStats } from "../src/content/caption.js";
 import { HASHTAGS, NICHES, suggestHashtags } from "../src/content/hashtags.js";
 import { createContextFactory } from "../src/context.js";
+import { parseLanguage, recoverTopicArgs } from "../src/prompts/args.js";
 import { DISCLAIMER } from "../src/prompts/guidelines.js";
 import { createServer } from "../src/server.js";
 
@@ -86,6 +87,60 @@ describe("prompts", () => {
     ).rejects.toThrow(/4 to 8/);
   });
 
+  it("accepts how Claude Code passes arguments (space-split, empty, spelled out)", async () => {
+    const client = await connect();
+    // "/mcp__instagram__nutrition_post vitamin D ar" → topic, language, audience = vitamin, D, ar
+    const split = await promptText(client, "nutrition_post", {
+      topic: "vitamin",
+      language: "D",
+      audience: "ar",
+    });
+    expect(split).toContain('"vitamin D"');
+    expect(split).toMatch(/LANGUAGE: Arabic/);
+
+    // No language word at all: everything is topic, and Claude asks for the language.
+    const noLang = await promptText(client, "nutrition_post", {
+      topic: "high-protein",
+      language: "breakfasts",
+    });
+    expect(noLang).toContain('"high-protein breakfasts"');
+    expect(noLang).toMatch(/Should this be in Arabic or English\?/);
+
+    const empty = await promptText(client, "nutrition_post", { topic: "fibre", language: "" });
+    expect(empty).toMatch(/Should this be in Arabic or English\?/);
+
+    const spelled = await promptText(client, "nutrition_post", {
+      topic: "fibre",
+      language: "Arabic",
+      audience: "busy parents",
+    });
+    expect(spelled).toMatch(/LANGUAGE: Arabic/);
+    expect(spelled).toContain("for busy parents");
+  });
+
+  it("recovers carousel arguments split on spaces", async () => {
+    const client = await connect();
+    // "/…carousel_series high protein breakfasts ar 6 gym beginners"
+    const text = await promptText(client, "carousel_series", {
+      topic: "high",
+      language: "protein",
+      slides: "breakfasts",
+      audience: "ar 6 gym beginners",
+    });
+    expect(text).toContain('"high protein breakfasts" for gym beginners');
+    expect(text).toMatch(/LANGUAGE: Arabic/);
+    expect(text).toMatch(/STRUCTURE \(8 slides\)/);
+  });
+
+  it("treats a non-language first word of the weekly plan as the focus", async () => {
+    const text = await promptText(await connect(), "weekly_content_plan", {
+      language: "gut",
+      focus: "health",
+    });
+    expect(text).toContain('"gut health"');
+    expect(text).toMatch(/Should this be in Arabic or English\?/);
+  });
+
   it("plans a week around a focus", async () => {
     const text = await promptText(await connect(), "weekly_content_plan", {
       language: "ar",
@@ -165,5 +220,30 @@ describe("suggestHashtags", () => {
     const body = JSON.parse((result.content as { text: string }[])[0]!.text);
     expect(body.hashtags).toHaveLength(10);
     expect(body.line).toBe(body.hashtags.join(" "));
+  });
+});
+
+describe("prompt argument parsing", () => {
+  it.each([
+    ["ar", "ar"],
+    [" Arabic ", "ar"],
+    ["عربي", "ar"],
+    ["العربية", "ar"],
+    ["EN", "en"],
+    ["english", "en"],
+    ["انجليزي", "en"],
+    ["", undefined],
+    [undefined, undefined],
+    ["D", null],
+  ] as const)("parseLanguage(%j) → %j", (input, expected) => {
+    expect(parseLanguage(input)).toBe(expected);
+  });
+
+  it("keeps clean arguments as they are", () => {
+    expect(recoverTopicArgs("vitamin D", ["en", "students"])).toEqual({
+      topic: "vitamin D",
+      language: "en",
+      rest: ["students"],
+    });
   });
 });

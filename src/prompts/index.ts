@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import { parseLanguage, recoverTopicArgs } from "./args.js";
 import {
   APPROVAL_FLOW,
   ARABIC_STYLE,
@@ -15,8 +16,10 @@ export interface PromptOptions {
   env?: NodeJS.ProcessEnv;
 }
 
+// Plain strings: Claude Code fills prompt arguments from space-separated words, so values are
+// normalised (and recovered) in the handlers instead of being rejected by the schema.
 const language = z
-  .enum(["ar", "en"])
+  .string()
   .optional()
   .describe('"ar" (Arabic) or "en" (English); Claude asks if left empty');
 const audience = z
@@ -50,8 +53,13 @@ export function registerPrompts(server: McpServer, options: PromptOptions = {}):
         audience,
       },
     },
-    ({ topic, language: lang, audience: who }) =>
-      message(
+    (args) => {
+      const {
+        topic,
+        language: lang,
+        rest: [who],
+      } = recoverTopicArgs(args.topic, [args.language, args.audience]);
+      return message(
         sections(
           `You are the content strategist for a nutrition Instagram account${handle() ? ` (${handle()})` : ""}. Create ONE single-image post about: "${topic}"${who ? ` for ${who}` : ""}.`,
           languageStep(lang),
@@ -62,7 +70,8 @@ export function registerPrompts(server: McpServer, options: PromptOptions = {}):
           HEALTH_GUARDRAIL,
           APPROVAL_FLOW,
         ),
-      ),
+      );
+    },
   );
 
   server.registerPrompt(
@@ -76,13 +85,24 @@ export function registerPrompts(server: McpServer, options: PromptOptions = {}):
         language,
         slides: z
           .string()
-          .regex(/^([4-8])?$/, "a number from 4 to 8")
           .optional()
           .describe("Number of content slides between cover and follow slide, 4-8 (default 5)"),
         audience,
       },
     },
-    ({ topic, language: lang, slides, audience: who }) => {
+    (args) => {
+      const recovered = recoverTopicArgs(args.topic, [args.language, args.slides, args.audience]);
+      const { topic, language: lang } = recovered;
+      // After recovery the remaining words are [slides?, audience…].
+      let [slides, ...audienceWords] = recovered.rest.join(" ").split(/\s+/).filter(Boolean);
+      if (slides && !/^\d+$/.test(slides)) {
+        audienceWords = [slides, ...audienceWords];
+        slides = undefined;
+      }
+      if (slides && (Number(slides) < 4 || Number(slides) > 8)) {
+        throw new Error(`slides must be a number from 4 to 8 (got ${slides}).`);
+      }
+      const who = audienceWords.join(" ") || undefined;
       const n = slides ? Number(slides) : 5;
       return message(
         sections(
@@ -120,8 +140,16 @@ export function registerPrompts(server: McpServer, options: PromptOptions = {}):
         audience,
       },
     },
-    ({ language: lang, focus, start_date, audience: who }) =>
-      message(
+    (args) => {
+      // A non-language first word is part of the focus (space-split arguments).
+      let lang = parseLanguage(args.language);
+      let focus = args.focus;
+      if (lang === null) {
+        focus = [args.language, args.focus].filter(Boolean).join(" ");
+        lang = undefined;
+      }
+      const { start_date, audience: who } = args;
+      return message(
         sections(
           `You are the content strategist for a nutrition Instagram account${handle() ? ` (${handle()})` : ""}. Plan the next 7 days of posts${start_date ? ` starting ${start_date}` : ""}${focus ? `, with the week's theme: "${focus}"` : ""}${who ? `, for ${who}` : ""}.`,
           languageStep(lang),
@@ -135,6 +163,7 @@ export function registerPrompts(server: McpServer, options: PromptOptions = {}):
           arabic(lang),
           HEALTH_GUARDRAIL,
         ),
-      ),
+      );
+    },
   );
 }

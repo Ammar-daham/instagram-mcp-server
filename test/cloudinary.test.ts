@@ -174,6 +174,17 @@ describe("uploadImage", () => {
     );
   });
 
+  it("points at the cloud name when Cloudinary doesn't know it", async () => {
+    server.use(
+      http.post(UPLOAD, () =>
+        HttpResponse.json({ error: { message: "Invalid cloud_name demo" } }, { status: 401 }),
+      ),
+    );
+    await expect(uploadImage(jpegPath, config)).rejects.toThrow(
+      /doesn't know that cloud name: check CLOUDINARY_CLOUD_NAME.*Invalid cloud_name demo/,
+    );
+  });
+
   it("retries server errors", async () => {
     let calls = 0;
     server.use(

@@ -235,11 +235,16 @@ export async function uploadImage(
 
 function describeUploadError(status: number, message: string | undefined): string {
   const detail = message ? ` Details: ${message}` : "";
+  // Cloudinary answers an unknown cloud name with 401 "Invalid cloud_name <name>".
+  if (status === 404 || /cloud_name/i.test(message ?? "")) {
+    return (
+      "Cloudinary doesn't know that cloud name: check CLOUDINARY_CLOUD_NAME. It's the short " +
+      'code shown as "Cloud name" in the Cloudinary dashboard (also the part after @ in ' +
+      `CLOUDINARY_URL), not the account or environment name.${detail}`
+    );
+  }
   if (status === 401) {
     return `Cloudinary rejected the credentials: check CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.${detail}`;
-  }
-  if (status === 404) {
-    return `Cloudinary doesn't know that cloud name: check CLOUDINARY_CLOUD_NAME.${detail}`;
   }
   if (status === 420 || status === 429) {
     return `Cloudinary rate or usage limit reached (free tier). Try again later.${detail}`;

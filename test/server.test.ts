@@ -38,6 +38,7 @@ describe("MCP server", () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       "check_token",
+      "delete_image",
       "get_account_info",
       "render_card",
       "upload_image",
@@ -241,6 +242,25 @@ describe("MCP server", () => {
         width: 1080,
         height: 1350,
         publiclyReachable: true,
+      });
+    });
+
+    it("delete_image removes an uploaded card", async () => {
+      server.use(
+        http.post("https://cloudinary.test/v1_1/demo/image/destroy", async ({ request }) => {
+          expect((await request.formData()).get("public_id")).toBe("instagram/end-slide");
+          return HttpResponse.json({ result: "ok" });
+        }),
+      );
+      const client = await connect(cloudEnv());
+      const result = await client.callTool({
+        name: "delete_image",
+        arguments: { image: publicUrl },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(JSON.parse(text(result))).toEqual({
+        publicId: "instagram/end-slide",
+        status: "deleted",
       });
     });
 

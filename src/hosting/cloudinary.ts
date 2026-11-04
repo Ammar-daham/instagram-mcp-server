@@ -260,3 +260,100 @@ export async function verifyPublicUrl(
     return { ok: false, status: 0, contentType: null };
   }
 }
+
+/**
+ * Turn a Cloudinary delivery URL into its public ID, e.g.
+ * https://res.cloudinary.com/demo/image/upload/v17/instagram/tip.jpg → "instagram/tip".
+ * Returns undefined if the URL isn't an image of this cloud.
+ */
+export function publicIdFromUrl(url: string, cloudName: string): string | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return undefined;
+  }
+  const parts = parsed.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+  // /<cloud>/image/upload/[transformations/][v123/]<public_id>.<ext>
+  if (parts[0] !== cloudName || parts[1] !== "image" || parts[2] !== "upload") return undefined;
+  let rest = parts.slice(3);
+  const version = rest.findIndex((p) => /^v\d+$/.test(p));
+  if (version >= 0) rest = rest.slice(version + 1);
+  if (!rest.length) return undefined;
+  return rest.join("/").replace(/\.[A-Za-z0-9]+$/, "");
+}
+
+export interface DeleteResult {
+  publicId: string;
+  /** "deleted", or "not found" if it was already gone. */
+  status: "deleted" | "not found";
+}
+
+/**
+ * Delete an uploaded image and purge it from Cloudinary's CDN cache, so the public URL stops
+ * working. Only images inside the configured folder can be deleted, never other media.
+ */
+export async function deleteImage(
+  publicIdOrUrl: string,
+  config: CloudinaryConfig,
+  options: Omit<UploadOptions, "publicId"> = {},
+): Promise<DeleteResult> {
+  const publicId = /^https?:\/\//.test(publicIdOrUrl)
+    ? publicIdFromUrl(publicIdOrUrl, config.cloudName)
+    : publicIdOrUrl.replace(/\.(jpe?g)$/i, "");
+  if (!publicId) {
+    throw new HostingError(
+      `${publicIdOrUrl} isn't an image URL of the Cloudinary cloud "${config.cloudName}".`,
+    );
+  }
+  if (!publicId.startsWith(`${config.folder}/`) || publicId.includes("..")) {
+    throw new HostingError(
+      `Refusing to delete "${publicId}": only images in the "${config.folder}/" folder ` +
+        "(uploaded by this server) can be deleted.",
+    );
+  }
+
+  const fetchImpl = options.fetch ?? globalThis.fetch;
+  const sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const maxRetries = options.maxRetries ?? 2;
+  const params: Record<string, string> = {
+    invalidate: "true",
+    public_id: publicId,
+    timestamp: String(Math.floor((options.now?.() ?? new Date()).getTime() / 1000)),
+  };
+  const url = `${config.apiBaseUrl}/v1_1/${encodeURIComponent(config.cloudName)}/image/destroy`;
+
+  for (let attempt = 0; ; attempt++) {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(params)) form.set(k, v);
+    form.set("api_key", config.apiKey);
+    form.set("signature", signParams(params, config.apiSecret));
+
+    let response: Response;
+    try {
+      response = await fetchImpl(url, { method: "POST", body: form });
+    } catch (cause) {
+      if (attempt < maxRetries) {
+        await sleep(1000 * 2 ** attempt);
+        continue;
+      }
+      throw new HostingError(`Could not reach Cloudinary: ${(cause as Error).message}`);
+    }
+    const body = (await response.json().catch(() => ({}))) as {
+      result?: string;
+      error?: { message: string };
+    };
+    if (response.ok && body.result === "ok") return { publicId, status: "deleted" };
+    if (response.ok && body.result === "not found") return { publicId, status: "not found" };
+    if (response.status >= 500 && attempt < maxRetries) {
+      await sleep(1000 * 2 ** attempt);
+      continue;
+    }
+    throw new HostingError(
+      describeUploadError(response.status, body.error?.message ?? body.result).replace(
+        "upload failed",
+        "delete failed",
+      ),
+    );
+  }
+}

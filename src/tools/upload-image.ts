@@ -18,7 +18,9 @@ export function registerUploadImage(server: McpServer, options: UploadImageOptio
       description:
         "Upload a rendered card (a JPEG from render_card, saved in out/) to Cloudinary and " +
         "return its public HTTPS URL, which Instagram needs for publishing. The image becomes " +
-        "publicly accessible. Re-uploading a file with the same name replaces it.",
+        "publicly accessible until deleted: call delete_image with the returned URL once the " +
+        "post is live (Instagram keeps its own copy). Re-uploading a file with the same name " +
+        "replaces it.",
       inputSchema: {
         path: z.string().min(1).describe("Local path of the JPEG, as returned by render_card"),
         public_id: z

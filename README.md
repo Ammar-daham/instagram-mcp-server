@@ -37,12 +37,13 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 
 ### Tools
 
-| Tool               | What it does                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| `check_token`      | Checks the token works, which account it belongs to, and days until it expires     |
-| `get_account_info` | Username, name, account type, followers, following, post count                     |
-| `render_card`      | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview |
-| `upload_image`     | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs   |
+| Tool               | What it does                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| `check_token`      | Checks the token works, which account it belongs to, and days until it expires                  |
+| `get_account_info` | Username, name, account type, followers, following, post count                                  |
+| `render_card`      | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview              |
+| `upload_image`     | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                |
+| `delete_image`     | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working |
 
 ### Cards
 
@@ -93,8 +94,13 @@ Then ask Claude to "upload that card". `upload_image` returns a URL like
 `https://res.cloudinary.com/<cloud>/image/upload/v…/instagram/<name>.jpg` and checks that it
 opens publicly. Uploaded images are public, so `upload_image` only accepts JPEGs (max 8 MB,
 Instagram's limit) from `out/`, plus any folders you list in `UPLOAD_ALLOWED_DIRS`.
-Re-uploading a file with the same name replaces it. Delete old uploads in the Cloudinary
-**Media Library** whenever you like; posts already published on Instagram aren't affected.
+Re-uploading a file with the same name replaces it.
+
+Uploaded images stay public until deleted. Once a post is live, Instagram has its own copy, so
+the upload is no longer needed: ask Claude to delete it (`delete_image` with the URL), and the
+publishing tools will do this automatically. Deleting also purges Cloudinary's CDN cache, so
+the link stops working, and only images in the server's Cloudinary folder (`instagram/` by
+default) can be deleted. Deleting never affects the published Instagram post.
 
 ### Keeping the token valid
 

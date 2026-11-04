@@ -44,6 +44,7 @@ describe("MCP server", () => {
       "publish_carousel",
       "publish_post",
       "render_card",
+      "suggest_hashtags",
       "upload_image",
     ]);
   });

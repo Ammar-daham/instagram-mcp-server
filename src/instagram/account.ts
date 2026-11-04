@@ -32,3 +32,16 @@ export async function getAccountInfo(
     fields: ["user_id", "account_type", ...COMMON_FIELDS].join(","),
   });
 }
+
+/** The Instagram user ID: IG_USER_ID, or (Instagram login) the token's own account. */
+export async function resolveUserId(
+  client: InstagramClient,
+  config: Pick<Config, "userId">,
+): Promise<string> {
+  if (config.userId) return config.userId;
+  // Facebook login requires IG_USER_ID (checked in config); Instagram login can ask /me.
+  const me = await client.get<{ user_id?: string; id?: string }>("me", { fields: "user_id" });
+  const id = me.user_id ?? me.id;
+  if (!id) throw new Error("Couldn't determine the Instagram user ID; set IG_USER_ID.");
+  return id;
+}

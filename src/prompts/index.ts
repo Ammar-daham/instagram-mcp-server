@@ -166,4 +166,45 @@ export function registerPrompts(server: McpServer, options: PromptOptions = {}):
       );
     },
   );
+
+  server.registerPrompt(
+    "performance_review",
+    {
+      title: "Performance review",
+      description:
+        "Review recent posts and account results: what brought followers, saves and reach, and what to post next.",
+      argsSchema: {
+        language,
+        days: z.string().optional().describe("How far back, in days (default 30, max 30)"),
+      },
+    },
+    (args) => {
+      const lang = parseLanguage(args.language) ?? undefined;
+      const daysNum = Number(args.days);
+      const days =
+        Number.isFinite(daysNum) && daysNum >= 1 ? Math.min(30, Math.round(daysNum)) : 30;
+      return message(
+        sections(
+          `You are the growth analyst for a nutrition Instagram account${handle() ? ` (${handle()})` : ""}. Review the last ${days} days and recommend what to post next.`,
+          lang
+            ? `Write the review in ${lang === "ar" ? "Arabic" : "English"}.`
+            : "Write the review in the language the user writes in.",
+          `STEPS:
+1. get_account_insights with days: ${days} (reach, engagement, follower growth).
+2. get_recent_posts with since_days: ${days} (up to 25), then get_post_insights with those post ids.
+3. Rank posts by what grows the account, in this order: follows (feed posts only; reels have no follows data), then saves and shares (strongest signals of value), then reach. Use rates (% of reach) to compare posts with different reach.
+4. Compare formats (carousel vs reel vs single image), topics, hooks (first caption line) and card templates.`,
+          `OUTPUT:
+- Headline numbers for the period (reach, engaged accounts, follower change if known).
+- "What worked": the top 3 posts with the numbers that put them there and a one-line reason why.
+- "What didn't": 1-2 patterns to drop or change.
+- "Post next": 3-5 concrete ideas (topic + format + hook), each tied to a finding. Offer to create the first one with carousel_series or nutrition_post.`,
+          `RULES:
+- Use only numbers the tools returned; never invent or estimate metrics. Say when data is missing (e.g. no follows for reels, follower history still building, insights lag up to 48 h).
+- Small accounts have small, noisy numbers: talk about patterns across several posts, not single-post wins, and say when the sample is too small to conclude.
+- Be specific and practical; skip generic social-media advice.`,
+        ),
+      );
+    },
+  );
 }

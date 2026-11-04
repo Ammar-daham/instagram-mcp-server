@@ -1,9 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ContextFactory } from "../context.js";
 import { getAccountInfo } from "../instagram/account.js";
+import { recordFollowers } from "../insights/followers.js";
+import { followersFile } from "../insights/store.js";
 import { toolResult } from "./result.js";
 
-export function registerGetAccountInfo(server: McpServer, getContext: ContextFactory): void {
+export function registerGetAccountInfo(
+  server: McpServer,
+  getContext: ContextFactory,
+  options: { env?: NodeJS.ProcessEnv; now?: () => Date } = {},
+): void {
   server.registerTool(
     "get_account_info",
     {
@@ -17,6 +23,14 @@ export function registerGetAccountInfo(server: McpServer, getContext: ContextFac
       toolResult(async () => {
         const { client, config } = await getContext();
         const info = await getAccountInfo(client, config);
+        if (info.followers_count !== undefined) {
+          // Builds the follower history used by get_account_insights; never fails the call.
+          await recordFollowers(
+            followersFile(options.env),
+            info.followers_count,
+            options.now?.() ?? new Date(),
+          ).catch(() => undefined);
+        }
         if (config.userId && info.user_id && config.userId !== info.user_id) {
           return {
             ...info,

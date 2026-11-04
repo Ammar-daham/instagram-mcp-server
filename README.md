@@ -37,17 +37,20 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 
 ### Tools
 
-| Tool                           | What it does                                                                                    |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `check_token`                  | Checks the token works, which account it belongs to, and days until it expires                  |
-| `get_account_info`             | Username, name, account type, followers, following, post count                                  |
-| `render_card`                  | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview              |
-| `upload_image`                 | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                |
-| `delete_image`                 | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working |
-| `publish_post`                 | Publishes one image with a caption (dry run unless `confirm: true`)                             |
-| `publish_carousel`             | Publishes 2–10 images as a carousel (dry run unless `confirm: true`)                            |
-| `create_and_publish_card_post` | Renders 1–10 cards, previews them all, and publishes on `confirm: true`                         |
-| `suggest_hashtags`             | Curated nutrition hashtag mix (broad, specific, niche) in Arabic, English or both               |
+| Tool                           | What it does                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `check_token`                  | Checks the token works, which account it belongs to, and days until it expires                                    |
+| `get_account_info`             | Username, name, account type, followers, following, post count                                                    |
+| `render_card`                  | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview                                |
+| `upload_image`                 | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                                  |
+| `delete_image`                 | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working                   |
+| `publish_post`                 | Publishes one image with a caption (dry run unless `confirm: true`)                                               |
+| `publish_carousel`             | Publishes 2–10 images as a carousel (dry run unless `confirm: true`)                                              |
+| `create_and_publish_card_post` | Renders 1–10 cards, previews them all, and publishes on `confirm: true`                                           |
+| `suggest_hashtags`             | Curated nutrition hashtag mix (broad, specific, niche) in Arabic, English or both                                 |
+| `get_recent_posts`             | Recent posts: type, date, link, caption preview, likes, comments                                                  |
+| `get_post_insights`            | Per-post reach, views, saves, shares, follows (feed posts), watch time (reels), top posts and averages per format |
+| `get_account_insights`         | Account reach, engagement, saves, shares and follower growth over the last 1–30 days                              |
 
 ### Prompts
 
@@ -55,16 +58,36 @@ The server also offers **prompts**: ready-made briefs that turn Claude into your
 strategist. In Claude Code, type `/` and pick them from the list (they appear as
 `/mcp__instagram__nutrition_post` and so on), or just ask in plain language.
 
-| Prompt                | Arguments                                  | What you get                                                    |
-| --------------------- | ------------------------------------------ | --------------------------------------------------------------- |
-| `nutrition_post`      | topic, language?, audience?                | One single-card post: card, hook, caption, hashtags             |
-| `carousel_series`     | topic, language?, slides? (4–8), audience? | Cover + content slides + follow slide, with caption             |
-| `weekly_content_plan` | language?, focus?, start_date?, audience?  | A 7-day plan across tips, recipes, myth-busting, macros and Q&A |
+| Prompt                | Arguments                                  | What you get                                                               |
+| --------------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `nutrition_post`      | topic, language?, audience?                | One single-card post: card, hook, caption, hashtags                        |
+| `carousel_series`     | topic, language?, slides? (4–8), audience? | Cover + content slides + follow slide, with caption                        |
+| `performance_review`  | language?, days? (max 30)                  | What brought follows, saves and reach, and 3–5 ideas for what to post next |
+| `weekly_content_plan` | language?, focus?, start_date?, audience?  | A 7-day plan across tips, recipes, myth-busting, macros and Q&A            |
 
 Every prompt asks for the language (Arabic or English) if you leave it empty, follows a
 health-claims guardrail (evidence-based wording, no cure or weight-loss promises, official
 intakes only for supplements, a "not medical advice" line where needed), and ends with a dry
 run: Claude shows you the preview and caption and only publishes after you say yes.
+
+### Insights
+
+Ask "Which of my recent posts did best?" or use the `performance_review` prompt. What Meta
+provides:
+
+- **Feed posts** (images, carousels): reach, views, likes, comments, saves, shares, profile
+  visits and **follows** (people who followed from that post).
+- **Reels**: the same without follows and profile visits, plus average watch time.
+- **Account**: reach, views, accounts engaged, interactions, saves, shares and link taps over
+  up to 30 days. Follower history and follows/unfollows only exist for accounts with **100+
+  followers**, so until then the server keeps its own follower history: one snapshot per day,
+  saved in `.data/followers.json` (gitignored) whenever it reads your account. Growth shows up
+  after a few days of use.
+
+Insights need the `instagram_manage_insights` (Facebook login) or
+`instagram_business_manage_insights` (Instagram login) permission, and can lag by up to 48
+hours. Graph API paging links contain your access token, so the tools never return raw API
+responses.
 
 ### Cards
 

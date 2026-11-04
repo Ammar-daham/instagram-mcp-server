@@ -10,6 +10,7 @@ import { loadTheme } from "../cards/theme.js";
 import type { ContextFactory } from "../context.js";
 import { PROJECT_ROOT } from "../paths.js";
 import { runPublish, type FlowDeps } from "../publishing/flow.js";
+import { progressReporter } from "./progress.js";
 import { rawToolResult, toolResult } from "./result.js";
 
 export type PublishToolOptions = Omit<FlowDeps, "getContext" | "env"> & {
@@ -56,7 +57,7 @@ export function registerPublishTools(
       inputSchema: { image, caption, confirm, keep_uploads: keepUploads },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    (args) =>
+    (args, extra) =>
       toolResult(() =>
         runPublish(
           {
@@ -64,6 +65,8 @@ export function registerPublishTools(
             caption: args.caption,
             confirm: args.confirm,
             keepUploads: args.keep_uploads,
+            signal: extra.signal,
+            onProgress: progressReporter(extra),
           },
           deps,
         ),
@@ -85,7 +88,7 @@ export function registerPublishTools(
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    (args) =>
+    (args, extra) =>
       toolResult(() =>
         runPublish(
           {
@@ -93,6 +96,8 @@ export function registerPublishTools(
             caption: args.caption,
             confirm: args.confirm,
             keepUploads: args.keep_uploads,
+            signal: extra.signal,
+            onProgress: progressReporter(extra),
           },
           deps,
         ),
@@ -131,8 +136,9 @@ export function registerPublishTools(
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    (args) =>
+    (args, extra) =>
       rawToolResult(async () => {
+        const progress = progressReporter(extra);
         const theme = loadTheme(env);
         const outDir = path.resolve(PROJECT_ROOT, env.CARD_OUTPUT_DIR || "out");
         await mkdir(outDir, { recursive: true });
@@ -142,6 +148,7 @@ export function registerPublishTools(
         const files: string[] = [];
         const jpegs: Buffer[] = [];
         for (const [i, card] of args.cards.entries()) {
+          progress(`Rendering slide ${i + 1}/${args.cards.length}`);
           let rendered;
           try {
             rendered = await renderCard(card.template, card.content, theme, args.language);
@@ -165,6 +172,8 @@ export function registerPublishTools(
             caption: args.caption,
             confirm: args.confirm,
             keepUploads: args.keep_uploads,
+            signal: extra.signal,
+            onProgress: progress,
           },
           deps,
         );

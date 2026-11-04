@@ -10,6 +10,8 @@ export interface PollOptions {
   timeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
+  /** Stop waiting when the request is cancelled. */
+  signal?: AbortSignal;
 }
 
 export class PublishError extends Error {
@@ -86,6 +88,8 @@ export async function waitForContainer(
   const now = options.now ?? Date.now;
   const start = now();
   for (;;) {
+    if (options.signal?.aborted)
+      throw new PublishError("Cancelled while Instagram was processing.");
     const status = await getContainerStatus(client, containerId);
     if (status.code === "FINISHED" || status.code === "PUBLISHED") return;
     if (status.code === "ERROR" || status.code === "EXPIRED") {

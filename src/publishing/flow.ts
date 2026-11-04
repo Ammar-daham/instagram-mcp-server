@@ -39,6 +39,10 @@ export interface PublishRequest {
   caption: string;
   confirm: boolean;
   keepUploads?: boolean;
+  /** Cancellation from the client (e.g. a timeout). Honoured until the final publish call. */
+  signal?: AbortSignal;
+  /** Called at each step, e.g. to send MCP progress notifications. */
+  onProgress?: (message: string) => void;
 }
 
 export interface FlowDeps {
@@ -171,6 +175,14 @@ export async function runPublish(
   }
   if (problems.length) throw new PublishError(problems.join("\n"));
 
+  const progress = request.onProgress ?? (() => {});
+  const checkCancelled = () => {
+    if (request.signal?.aborted) {
+      throw new PublishError("The request was cancelled (or timed out) before publishing.");
+    }
+  };
+  const poll = { ...deps.poll, ...(request.signal ? { signal: request.signal } : {}) };
+
   const uploads: { url: string; publicId: string }[] = [];
   const cloud = hosting instanceof HostingError ? undefined : hosting;
   const hostingOpts = { ...deps.hosting, ...(deps.fetch ? { fetch: deps.fetch } : {}) };
@@ -179,7 +191,8 @@ export async function runPublish(
   let media;
   try {
     const urls: string[] = [];
-    for (const image of images) {
+    for (const [i, image] of images.entries()) {
+      checkCancelled();
       if (image.kind === "url") {
         urls.push(image.source);
         continue;
@@ -188,6 +201,7 @@ export async function runPublish(
         .basename(image.source, path.extname(image.source))
         .replace(/[^A-Za-z0-9_-]+/g, "-")
         .slice(0, 80);
+      progress(`Uploading image ${i + 1}/${images.length}`);
       const up = await uploadImage(image.source, cloud!, {
         ...hostingOpts,
         publicId: `${base}-${suffix()}`,
@@ -197,24 +211,34 @@ export async function runPublish(
     }
 
     let containerId: string;
+    checkCancelled();
     if (type === "post") {
+      progress("Creating the Instagram post");
       containerId = await createImageContainer(ctx.client, userId, {
         imageUrl: urls[0]!,
         caption: request.caption,
       });
     } else {
       const children: string[] = [];
-      for (const url of urls) {
+      for (const [i, url] of urls.entries()) {
+        checkCancelled();
+        progress(`Instagram is processing slide ${i + 1}/${urls.length}`);
         const child = await createImageContainer(ctx.client, userId, {
           imageUrl: url,
           isCarouselItem: true,
         });
-        await waitForContainer(ctx.client, child, deps.poll);
+        await waitForContainer(ctx.client, child, poll);
         children.push(child);
       }
+      checkCancelled();
+      progress("Creating the carousel");
       containerId = await createCarouselContainer(ctx.client, userId, children, request.caption);
     }
-    await waitForContainer(ctx.client, containerId, deps.poll);
+    progress("Waiting for Instagram to finish processing");
+    await waitForContainer(ctx.client, containerId, poll);
+    // Last chance to stop: after this call the post is live.
+    checkCancelled();
+    progress("Publishing");
     media = await publishContainer(ctx.client, userId, containerId);
   } catch (error) {
     // Not published: take the uploads down again so nothing stays public.
@@ -245,6 +269,7 @@ export async function runPublish(
           .filter((id): id is string => Boolean(id?.startsWith(`${cloud.folder}/`)))
       : []),
   ];
+  if (!request.keepUploads && toDelete.length) progress("Published. Deleting the uploaded images");
   const result = request.keepUploads
     ? { deleted: [], failed: toDelete }
     : await deleteAll(toDelete, cloud, hostingOpts);

@@ -91,6 +91,11 @@ public except the Instagram post. If publishing fails, the uploads are deleted t
 Try: "Make a 5-slide Arabic carousel about high-protein breakfasts and publish it" → Claude
 renders the slides, shows the preview and caption, and waits for your OK.
 
+Publishing a carousel can take 20–60 seconds (Instagram processes each slide). The tools send
+progress updates while they work. If the client cancels or times out before the final publish
+step, nothing is posted and the uploads are deleted. In the MCP Inspector, keep **Reset Timeout
+on Progress** enabled (Configuration), or raise **Request Timeout** to e.g. `120000`.
+
 Publishing needs the token permissions `instagram_content_publish` (Facebook login) or
 `instagram_business_content_publish` (Instagram login), see [docs/META_SETUP.md](docs/META_SETUP.md).
 

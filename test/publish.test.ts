@@ -287,6 +287,67 @@ describe("publishing", () => {
     expect(log.filter((l) => l.startsWith("publish"))).toHaveLength(1);
   });
 
+  it("reports each step", async () => {
+    fakes();
+    const steps: string[] = [];
+    await runPublish(
+      {
+        images: [card("a.jpg"), card("b.jpg")],
+        caption: "Hi",
+        confirm: true,
+        onProgress: (m) => steps.push(m),
+      },
+      deps,
+    );
+    expect(steps).toEqual([
+      "Uploading image 1/2",
+      "Uploading image 2/2",
+      "Instagram is processing slide 1/2",
+      "Instagram is processing slide 2/2",
+      "Creating the carousel",
+      "Waiting for Instagram to finish processing",
+      "Publishing",
+      "Published. Deleting the uploaded images",
+    ]);
+  });
+
+  it("stops before publishing when cancelled, and deletes the uploads", async () => {
+    const { log } = fakes({ statuses: ["IN_PROGRESS", "IN_PROGRESS", "IN_PROGRESS"] });
+    const controller = new AbortController();
+    let polls = 0;
+    const result = runPublish(
+      { images: [card("a.jpg")], caption: "Hi", confirm: true, signal: controller.signal },
+      {
+        ...deps,
+        poll: {
+          ...deps.poll,
+          // The client gives up while Instagram is still processing.
+          sleep: async () => {
+            if (++polls === 2) controller.abort();
+          },
+        },
+      },
+    );
+    await expect(result).rejects.toThrow(
+      /Cancelled while Instagram was processing[\s\S]*Nothing was published\. The uploaded images were deleted again/,
+    );
+    expect(log.some((l) => l.startsWith("publish"))).toBe(false);
+    expect(log).toContain("delete instagram/a-r4nd");
+  });
+
+  it("does nothing when already cancelled", async () => {
+    const { log } = fakes();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      runPublish(
+        { images: [card("a.jpg")], caption: "Hi", confirm: true, signal: controller.signal },
+        deps,
+      ),
+    ).rejects.toThrow(/cancelled \(or timed out\) before publishing[\s\S]*Nothing was published/);
+    expect(log).toEqual([]);
+  });
+
   it("reports uploads it couldn't delete", async () => {
     fakes();
     server.use(
@@ -376,6 +437,35 @@ describe("MCP tools", () => {
       permalink: "https://www.instagram.com/p/abc/",
       deleted: ["instagram/water-ar-1-r4nd", "instagram/water-ar-2-r4nd"],
     });
+  });
+
+  it("sends progress notifications, so clients don't time out", async () => {
+    fakes();
+    const client = await connect();
+    const messages: string[] = [];
+    const result = await client.callTool(
+      {
+        name: "create_and_publish_card_post",
+        arguments: {
+          language: "en",
+          caption: "Hi",
+          confirm: true,
+          cards: [
+            { template: "follow", content: {} },
+            { template: "follow", content: {} },
+          ],
+        },
+      },
+      undefined,
+      { onprogress: (p) => messages.push(p.message ?? ""), resetTimeoutOnProgress: true },
+    );
+    expect(result.isError).toBeFalsy();
+    expect(messages.slice(0, 3)).toEqual([
+      "Rendering slide 1/2",
+      "Rendering slide 2/2",
+      "Uploading image 1/2",
+    ]);
+    expect(messages).toContain("Publishing");
   });
 
   it("names the slide with invalid content", async () => {

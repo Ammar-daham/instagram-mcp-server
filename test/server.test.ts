@@ -27,6 +27,8 @@ const env = {
   IG_ACCESS_TOKEN: "T",
   IG_API_BASE_URL: BASE,
   IG_TOKEN_STORE: "/nonexistent/token.json",
+  // Keep follower snapshots out of the project's .data/.
+  INSIGHTS_DATA_DIR: path.join(tmpdir(), `ig-server-test-${process.pid}`),
 };
 const text = (result: Awaited<ReturnType<Client["callTool"]>>) =>
   (result.content as { type: string; text: string }[])[0]!.text;
@@ -41,6 +43,9 @@ describe("MCP server", () => {
       "create_and_publish_card_post",
       "delete_image",
       "get_account_info",
+      "get_account_insights",
+      "get_post_insights",
+      "get_recent_posts",
       "publish_carousel",
       "publish_post",
       "render_card",

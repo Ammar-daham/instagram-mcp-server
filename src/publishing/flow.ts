@@ -9,7 +9,7 @@ import { randomBytes } from "node:crypto";
 import path from "node:path";
 import sharp from "sharp";
 import { validateCaption, type CaptionStats } from "../content/caption.js";
-import type { AppContext, ContextFactory } from "../context.js";
+import type { ContextFactory } from "../context.js";
 import {
   checkUploadable,
   deleteImage,
@@ -21,7 +21,7 @@ import {
   type CloudinaryConfig,
   type UploadOptions,
 } from "../hosting/cloudinary.js";
-import { getAccountInfo } from "../instagram/account.js";
+import { getAccountInfo, resolveUserId } from "../instagram/account.js";
 import {
   createCarouselContainer,
   createImageContainer,
@@ -90,15 +90,6 @@ async function resolveImages(images: string[], env: NodeJS.ProcessEnv): Promise<
   );
 }
 
-async function resolveUserId(ctx: AppContext): Promise<string> {
-  if (ctx.config.userId) return ctx.config.userId;
-  // Facebook login requires IG_USER_ID (checked in config); Instagram login can ask /me.
-  const me = await ctx.client.get<{ user_id?: string; id?: string }>("me", { fields: "user_id" });
-  const id = me.user_id ?? me.id;
-  if (!id) throw new PublishError("Couldn't determine the Instagram user ID; set IG_USER_ID.");
-  return id;
-}
-
 function tryHosting(env: NodeJS.ProcessEnv): CloudinaryConfig | HostingError {
   try {
     return loadCloudinaryConfig(env);
@@ -140,7 +131,7 @@ export async function runPublish(
   const images = await resolveImages(request.images, deps.env);
   const type = images.length === 1 ? "post" : "carousel";
   const ctx = await deps.getContext();
-  const userId = await resolveUserId(ctx);
+  const userId = await resolveUserId(ctx.client, ctx.config);
   const limit = await getPublishingLimit(ctx.client, userId);
   const hosting = tryHosting(deps.env);
   const hasLocal = images.some((i) => i.kind === "local");

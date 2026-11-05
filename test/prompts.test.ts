@@ -27,6 +27,7 @@ describe("prompts", () => {
     expect(prompts.map((p) => p.name).sort()).toEqual([
       "carousel_series",
       "nutrition_post",
+      "performance_review",
       "weekly_content_plan",
     ]);
     const post = prompts.find((p) => p.name === "nutrition_post")!;

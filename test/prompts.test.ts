@@ -26,6 +26,7 @@ describe("prompts", () => {
     const { prompts } = await (await connect()).listPrompts();
     expect(prompts.map((p) => p.name).sort()).toEqual([
       "carousel_series",
+      "fun_reel",
       "nutrition_post",
       "performance_review",
       "weekly_content_plan",

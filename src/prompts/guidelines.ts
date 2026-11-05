@@ -67,3 +67,19 @@ export const APPROVAL_FLOW = `PUBLISHING FLOW:
 2. Show the user the preview, the full caption and the dry-run result. Fix any problems it reports and re-run the dry run.
 3. Ask: "Publish this to Instagram?" Only after an explicit yes, call the same tool again with the exact same arguments plus confirm: true. If they want changes, edit and dry-run again.
 4. After publishing, share the permalink.`;
+
+export const GULF_STYLE = `GULF DIALECT (Arabic fun Reels: on-screen text, organ lines and caption):
+- Write in light, friendly Khaleeji: e.g. وش (what), ليش (why), وايد (a lot), شوي (a bit), ربعك (your friends), مقاضي (groceries), يبي/تبي (want), خلنا (let's), عشان (so that), احنا (we). Natural and warm, never crude; any Arabic speaker should still follow it.
+- The humour comes from the organs talking like people (grateful, dramatic, cheeky), not from mocking anyone's body or food choices.
+- No tashkeel; number ranges in words ("من 600 إلى 800"); end Arabic titles with an Arabic word, not a Latin letter + "؟".
+- The disclaimer line can stay in Modern Standard Arabic.`;
+
+/** Links between nutrients and organs that mainstream evidence supports (for body_map). */
+export const ORGAN_EVIDENCE = `WHICH ORGANS MAY "TALK" (body_map): only light up an organ if the link is well supported, e.g.:
+- vitamin D: bones, muscles, immune · calcium: bones · vitamin K: bones, blood (clotting)
+- omega-3 (EPA/DHA from fish): heart, brain, eyes · fibre: gut, heart (cholesterol)
+- iron: blood (red blood cells carry oxygen), brain (tiredness/focus when low) · vitamin B12: blood, brain (nerves)
+- vitamin C: immune, skin (collagen), blood (helps absorb plant iron) · vitamin A: eyes, skin, immune
+- zinc: immune, skin · potassium: heart (blood pressure), muscles · magnesium: muscles, bones, brain (nerves)
+- protein: muscles, skin · water: kidneys, brain, skin · probiotics/fermented foods: gut
+When in doubt, light up fewer organs. Never imply a cure, "detox" or guaranteed result.`;

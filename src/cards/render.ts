@@ -5,7 +5,7 @@ import satori from "satori";
 import sharp from "sharp";
 import { CARD_HEIGHT, CARD_WIDTH } from "./layout.js";
 import { parseContent, TEMPLATES, type TemplateName } from "./templates/index.js";
-import { LOCALES, type Language } from "./locale.js";
+import { LOCALES, type Language, type Locale } from "./locale.js";
 import type { Theme } from "./theme.js";
 
 type FontWeight = 400 | 600 | 700 | 800;
@@ -65,6 +65,8 @@ function loadFonts() {
 
 export interface RenderOptions {
   language?: Language;
+  /** Override the language's style (font, labels), e.g. for the fun Reel style. */
+  locale?: Locale;
   /** false keeps text as <text> elements (readable SVG for snapshot tests). */
   embedFont?: boolean;
 }
@@ -78,7 +80,7 @@ export async function renderSvg(
 ): Promise<string> {
   const language = options.language ?? "en";
   const data = parseContent(template, content, language);
-  const element = TEMPLATES[template].render(data, theme, LOCALES[language]);
+  const element = TEMPLATES[template].render(data, theme, options.locale ?? LOCALES[language]);
   return satori(element as Parameters<typeof satori>[0], {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
@@ -121,8 +123,12 @@ export async function renderCardPng(
   content: unknown,
   theme: Theme,
   language: Language = "en",
+  locale?: Locale,
 ): Promise<Buffer> {
-  const svg = await renderSvg(template, content, theme, { language });
+  const svg = await renderSvg(template, content, theme, {
+    language,
+    ...(locale ? { locale } : {}),
+  });
   return Buffer.from(
     new Resvg(svg, { fitTo: { mode: "width", value: CARD_WIDTH } }).render().asPng(),
   );

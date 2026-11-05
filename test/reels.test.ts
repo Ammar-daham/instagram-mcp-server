@@ -401,6 +401,7 @@ describe("MCP reel tools", () => {
       name: "render_reel",
       arguments: {
         language: "en",
+        style: "clean",
         name: "water",
         slides: [
           { template: "cover", seconds: 1.5, content: { title: "Drink more water" } },

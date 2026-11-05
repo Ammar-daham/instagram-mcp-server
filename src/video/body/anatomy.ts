@@ -139,10 +139,12 @@ export interface BodyOptions {
   /** 0..1, for the glow pulse in animations. */
   glow?: number;
   faces?: boolean;
+  /** Overall opacity, e.g. a faint body behind a title. */
+  opacity?: number;
 }
 
 /** The body as a transparent-background SVG (1080×1920). */
-export function bodySvg({ highlight, glow = 1, faces = true }: BodyOptions): string {
+export function bodySvg({ highlight, glow = 1, faces = true, opacity = 1 }: BodyOptions): string {
   const on = new Set(highlight);
   const organ = (o: Exclude<Organ, "skin">) => {
     const lit = on.has(o);
@@ -181,7 +183,7 @@ export function bodySvg({ highlight, glow = 1, faces = true }: BodyOptions): str
       <stop offset="1" stop-color="#9FF3E0" stop-opacity="0.08"/>
     </linearGradient>
   </defs>
-  <g transform="translate(${BODY_TRANSFORM.dx} ${BODY_TRANSFORM.dy}) scale(${BODY_TRANSFORM.scale})">
+  <g opacity="${opacity}" transform="translate(${BODY_TRANSFORM.dx} ${BODY_TRANSFORM.dy}) scale(${BODY_TRANSFORM.scale})">
   <g fill="${skinLit ? COLOURS.skin : "#9FF3E0"}" opacity="${skinLit ? 0.35 + 0.25 * glow : 0.18}" filter="url(#soft)">${BODY_OUTLINE}</g>
   <g fill="url(#glass)" stroke="${skinLit ? COLOURS.skin : "#CFFFF4"}" stroke-width="${skinLit ? 7 : 4}" stroke-opacity="${skinLit ? 1 : 0.7}">${BODY_OUTLINE}</g>
   ${order.map(organ).join("\n")}

@@ -7,8 +7,10 @@ import {
   ARABIC_STYLE,
   captionRules,
   cardRules,
+  GULF_STYLE,
   HEALTH_GUARDRAIL,
   languageStep,
+  ORGAN_EVIDENCE,
   type PromptLanguage,
 } from "./guidelines.js";
 
@@ -203,6 +205,42 @@ export function registerPrompts(server: McpServer, options: PromptOptions = {}):
 - Use only numbers the tools returned; never invent or estimate metrics. Say when data is missing (e.g. no follows for reels, follower history still building, insights lag up to 48 h).
 - Small accounts have small, noisy numbers: talk about patterns across several posts, not single-post wins, and say when the sample is too small to conclude.
 - Be specific and practical; skip generic social-media advice.`,
+        ),
+      );
+    },
+  );
+
+  server.registerPrompt(
+    "fun_reel",
+    {
+      title: "Fun Reel",
+      description:
+        "Turn a topic into a funny, sound-on Reel in the account's style: talking organs, Gulf dialect in Arabic.",
+      argsSchema: {
+        topic: z.string().describe("e.g. 'vitamin D', 'omega-3', 'drinking water'"),
+        language,
+      },
+    },
+    (args) => {
+      const { topic, language: lang } = recoverTopicArgs(args.topic, [args.language]);
+      return message(
+        sections(
+          `You are the creative director of a nutrition Instagram account${handle() ? ` (${handle()})` : ""}. Make a short, funny Reel about: "${topic}". It's watched with sound on and should be fun enough to share, while every claim stays accurate.`,
+          languageStep(lang),
+          `STRUCTURE (render_reel / create_and_publish_reel with style "fun", 10-20 s):
+1. cover: a curiosity hook as the title (a question works well), a short subtitle, kicker like "احفظه" / "Save this".
+2. body_map: the organs that benefit light up one by one and say a short funny line each (max 48 characters), plus a badge with the nutrient and 2-4 food sources.
+3. One of: tip (2-3 practical points, revealed one by one) or myth_fact (a common belief, then the correction).
+4. follow: the end slide (its default text already thanks the viewer and asks to follow, save and share).
+Set "slide" counters only if helpful; keep text short, it has to be read in a second.`,
+          ORGAN_EVIDENCE,
+          lang !== "en" && GULF_STYLE,
+          captionRules(lang, handle()),
+          HEALTH_GUARDRAIL,
+          `PUBLISHING FLOW:
+1. Call create_and_publish_reel WITHOUT confirm (dry run): it renders the video and returns a preview sheet; nothing is uploaded or posted.
+2. Show the user the preview, the organ lines and the caption. Mention the soundtrack is a synthesised placeholder unless they provide audio.
+3. Only after an explicit yes, call it again with the same arguments plus confirm: true, then share the permalink.`,
         ),
       );
     },

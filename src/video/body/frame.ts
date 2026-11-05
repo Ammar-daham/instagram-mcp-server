@@ -4,7 +4,6 @@
  * Layers: background → body → connector lines → text (satori). Kept separate so animations can
  * redraw only what changes.
  */
-import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
 import { z } from "zod";
 import { div, type CardNode } from "../../cards/element.js";
@@ -13,6 +12,8 @@ import { FUN_FONT_FAMILY, renderNodePng } from "../../cards/render.js";
 import { validateContent } from "../../cards/templates/index.js";
 import { cardText, slideField } from "../../cards/text.js";
 import type { Theme } from "../../cards/theme.js";
+import { FUN_TEXT } from "../fun/text.js";
+import { backgroundPng, svgPng } from "../fun/scene.js";
 import { anchor, bodySvg, ORGANS, type Organ } from "./anatomy.js";
 
 export const bodyMapSchema = z.strictObject({
@@ -65,7 +66,6 @@ const ORGAN_NAMES: Record<Language, Record<Organ, string>> = {
     blood: "الدم",
   },
 };
-const FIND_IT: Record<Language, string> = { en: "Find it in", ar: "تجده في" };
 
 const BUBBLE_W = 330;
 const MARGIN = 24;
@@ -113,24 +113,6 @@ export function layoutBubbles(organs: BodyMapContent["organs"]): Bubble[] {
   }
   // Top to bottom: the order organs light up in animations.
   return [...sides.left, ...sides.right].sort((a, b) => anchor(a.organ).y - anchor(b.organ).y);
-}
-
-function backgroundSvg(theme: Theme): string {
-  const dots = [
-    [90, 380, 10, "#FFD166"],
-    [980, 420, 8, "#FF8FB8"],
-    [150, 1180, 7, "#8ED1F0"],
-    [940, 1260, 11, "#5CF2B5"],
-    [60, 760, 6, "#FF8FB8"],
-    [1020, 860, 7, "#FFD166"],
-  ];
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920">
-    <defs><radialGradient id="g" cx="0.5" cy="0.48" r="0.75">
-      <stop offset="0" stop-color="${theme.primary}"/><stop offset="1" stop-color="#0A2A20"/>
-    </radialGradient></defs>
-    <rect width="1080" height="1920" fill="url(#g)"/>
-    ${dots.map(([x, y, r, c]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" opacity="0.8"/>`).join("")}
-  </svg>`;
 }
 
 function connectorsSvg(bubbles: Bubble[], visible: number): string {
@@ -247,7 +229,7 @@ function textLayer(
             borderRadius: 999,
             border: "4px solid #1B1B1B",
           },
-          `${FIND_IT[language]}: ${c.sources.join(" · ")}`,
+          `${FUN_TEXT[language].findIt}: ${c.sources.join(" · ")}`,
         ),
       )
     : null;
@@ -286,8 +268,6 @@ export function backOut(t: number): number {
   return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2;
 }
 
-const svgPng = (svg: string) => Buffer.from(new Resvg(svg).render().asPng());
-
 /** Validate the content and render one 1080×1920 PNG frame. */
 export async function renderBodyMapFrame(
   content: unknown,
@@ -313,8 +293,5 @@ export async function renderBodyMapFrame(
       ),
     },
   ];
-  return sharp(svgPng(backgroundSvg(theme)))
-    .composite(layers)
-    .png()
-    .toBuffer();
+  return sharp(backgroundPng(theme)).composite(layers).png().toBuffer();
 }

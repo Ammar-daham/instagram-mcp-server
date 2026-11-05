@@ -269,8 +269,7 @@ describe("runReelPublish", () => {
         return HttpResponse.json({ id: "M9" });
       }),
       http.get(`${API}/:id`, ({ params }) => {
-        if (params.id === "me")
-          return HttpResponse.json({ user_id: "42", username: "bodybloom" });
+        if (params.id === "me") return HttpResponse.json({ user_id: "42", username: "bodybloom" });
         if (params.id === "M9")
           return HttpResponse.json({ id: "M9", permalink: "https://www.instagram.com/reel/xyz/" });
         const code = queue.shift() ?? "FINISHED";

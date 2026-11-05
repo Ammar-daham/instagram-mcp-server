@@ -129,15 +129,15 @@ Cards are 1080×1350 (4:5 portrait, the tallest format the feed shows) and use t
 Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so it always fits; emoji aren't drawn on cards
 (put them in the caption). Set your brand with these optional variables:
 
-| Variable                                          | Default            | Used for                                              |
-| ------------------------------------------------- | ------------------ | ----------------------------------------------------- |
+| Variable                                          | Default            | Used for                                         |
+| ------------------------------------------------- | ------------------ | ------------------------------------------------ |
 | `BRAND_HANDLE`                                    | none               | Footer and the "follow" slide, e.g. `@bodybloom` |
-| `BRAND_PRIMARY`                                   | `#2E7D5B`          | Pills, numbers, cover background, protein bar         |
-| `BRAND_ACCENT`                                    | `#E9964A`          | Highlights, carbs bar                                 |
-| `BRAND_HIGHLIGHT`                                 | `#D0645A`          | "Myth" box, fat bar                                   |
-| `BRAND_BACKGROUND` / `BRAND_TEXT` / `BRAND_MUTED` | cream / ink / grey | Card colours                                          |
-| `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer          |
-| `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                        |
+| `BRAND_PRIMARY`                                   | `#2E7D5B`          | Pills, numbers, cover background, protein bar    |
+| `BRAND_ACCENT`                                    | `#E9964A`          | Highlights, carbs bar                            |
+| `BRAND_HIGHLIGHT`                                 | `#D0645A`          | "Myth" box, fat bar                              |
+| `BRAND_BACKGROUND` / `BRAND_TEXT` / `BRAND_MUTED` | cream / ink / grey | Card colours                                     |
+| `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer     |
+| `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                   |
 
 ### Publishing
 

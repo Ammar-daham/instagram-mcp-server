@@ -87,10 +87,22 @@ export async function renderCard(
   theme: Theme,
   language: Language = "en",
 ): Promise<RenderedCard> {
-  const svg = await renderSvg(template, content, theme, { language });
-  const png = new Resvg(svg, { fitTo: { mode: "width", value: CARD_WIDTH } }).render().asPng();
+  const png = await renderCardPng(template, content, theme, language);
   const jpeg = await sharp(png).jpeg({ quality: 90, mozjpeg: true }).toBuffer();
   return { jpeg, width: CARD_WIDTH, height: CARD_HEIGHT };
+}
+
+/** Lossless 1080×1350 PNG, e.g. as a video frame. */
+export async function renderCardPng(
+  template: TemplateName,
+  content: unknown,
+  theme: Theme,
+  language: Language = "en",
+): Promise<Buffer> {
+  const svg = await renderSvg(template, content, theme, { language });
+  return Buffer.from(
+    new Resvg(svg, { fitTo: { mode: "width", value: CARD_WIDTH } }).render().asPng(),
+  );
 }
 
 /** Half-size preview, to keep the image sent back to Claude small. */

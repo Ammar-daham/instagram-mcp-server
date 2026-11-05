@@ -7,6 +7,7 @@ import { registerDeleteImage } from "./tools/delete-image.js";
 import { registerGetAccountInfo } from "./tools/get-account-info.js";
 import { registerInsightsTools, type InsightsToolOptions } from "./tools/insights.js";
 import { registerPublishTools, type PublishToolOptions } from "./tools/publish.js";
+import { registerReelTools, type ReelToolOptions } from "./tools/reels.js";
 import { registerRenderCard, type RenderCardOptions } from "./tools/render-card.js";
 import { registerSuggestHashtags } from "./tools/suggest-hashtags.js";
 import { registerUploadImage, type UploadImageOptions } from "./tools/upload-image.js";
@@ -22,7 +23,8 @@ export function createServer(
     UploadImageOptions &
     PublishToolOptions &
     PromptOptions &
-    InsightsToolOptions = {},
+    InsightsToolOptions &
+    Omit<ReelToolOptions, "poll"> = {},
 ): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   registerCheckToken(server, getContext);
@@ -33,6 +35,7 @@ export function createServer(
   registerPublishTools(server, getContext, options);
   registerSuggestHashtags(server);
   registerInsightsTools(server, getContext, options);
+  registerReelTools(server, getContext, options);
   registerPrompts(server, options);
   return server;
 }

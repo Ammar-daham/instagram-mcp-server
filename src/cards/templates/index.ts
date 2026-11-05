@@ -61,7 +61,17 @@ export class CardContentError extends Error {
 
 /** Validate content for a template, with messages that name the offending field. */
 export function parseContent(name: TemplateName, content: unknown, language: Language): unknown {
-  const result = TEMPLATES[name].schema.safeParse(content);
+  return validateContent(name, TEMPLATES[name].schema, content, language);
+}
+
+/** Validate any card-like content: schema, language match, Arabic number ranges, tashkeel. */
+export function validateContent(
+  name: string,
+  schema: z.ZodType,
+  content: unknown,
+  language: Language,
+): unknown {
+  const result = schema.safeParse(content);
   if (result.success) {
     checkLanguage(name, result.data, language);
     return language === "ar" ? mapStrings(result.data, stripTashkeel) : result.data;
@@ -80,7 +90,7 @@ function collectText(value: unknown): string {
 }
 
 /** Catch Arabic text on an English card (or the reverse), which would lay out the wrong way. */
-function checkLanguage(name: TemplateName, content: unknown, language: Language): void {
+function checkLanguage(name: string, content: unknown, language: Language): void {
   const { arabic, latin } = scriptCounts(collectText(content));
   if (language === "en" && arabic > latin) {
     throw new CardContentError(

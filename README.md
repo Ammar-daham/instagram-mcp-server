@@ -61,12 +61,13 @@ The server also offers **prompts**: ready-made briefs that turn Claude into your
 strategist. In Claude Code, type `/` and pick them from the list (they appear as
 `/mcp__instagram__nutrition_post` and so on), or just ask in plain language.
 
-| Prompt                | Arguments                                  | What you get                                                               |
-| --------------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
-| `nutrition_post`      | topic, language?, audience?                | One single-card post: card, hook, caption, hashtags                        |
-| `carousel_series`     | topic, language?, slides? (4–8), audience? | Cover + content slides + follow slide, with caption                        |
-| `performance_review`  | language?, days? (max 30)                  | What brought follows, saves and reach, and 3–5 ideas for what to post next |
-| `weekly_content_plan` | language?, focus?, start_date?, audience?  | A 7-day plan across tips, recipes, myth-busting, macros and Q&A            |
+| Prompt                | Arguments                                  | What you get                                                                               |
+| --------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `nutrition_post`      | topic, language?, audience?                | One single-card post: card, hook, caption, hashtags                                        |
+| `carousel_series`     | topic, language?, slides? (4–8), audience? | Cover + content slides + follow slide, with caption                                        |
+| `performance_review`  | language?, days? (max 30)                  | What brought follows, saves and reach, and 3–5 ideas for what to post next                 |
+| `fun_reel`            | topic, language?                           | A funny, sound-on Reel: hook, talking organs, tip or myth, follow (Gulf dialect in Arabic) |
+| `weekly_content_plan` | language?, focus?, start_date?, audience?  | A 7-day plan across tips, recipes, myth-busting, macros and Q&A                            |
 
 Every prompt asks for the language (Arabic or English) if you leave it empty, follows a
 health-claims guardrail (evidence-based wording, no cure or weight-loss promises, official
@@ -75,13 +76,38 @@ run: Claude shows you the preview and caption and only publishes after you say y
 
 ### Reels
 
-Ask "Make an Arabic Reel about vitamin D3": Claude picks 3–6 cards (strong cover first,
-follow slide last), renders a 1080×1920 MP4 in `out/`, shows a preview sheet of the slides,
-and publishes only after you approve.
+Ask "اعمل ريل مضحك عن فيتامين د" or use the `fun_reel` prompt: Claude writes the slides,
+renders a 1080×1920 MP4 in `out/`, shows a preview sheet of the slides, and publishes only
+after you approve.
+
+**Fun style (default, the account's look):** dark green glow, the playful Baloo Bhaijaan 2
+font, and everything pops in with sound effects. Arabic text and built-in labels are in **Gulf
+dialect** (e.g. "تلقاه في", "يقولون / بس الحقيقة", "ارسله لربعك").
+
+| Slide              | In the fun style                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cover`            | Big title pops in over a faint glowing body                                                                                                                        |
+| `body_map`         | A transparent body; 1–3 organs light up one by one with cartoon faces and talk in speech bubbles. Fields: `title`, `badge?`, `organs: [{organ, says}]`, `sources?` |
+| `tip`              | Points pop in one by one as chat bubbles                                                                                                                           |
+| `myth_fact`        | "They say" (buzz) → "Actually" (ding)                                                                                                                              |
+| `macros`, `recipe` | The card in the playful font, popping onto the green background                                                                                                    |
+| `follow`           | "Your organs say: thank you!" + follow pill                                                                                                                        |
+
+Organs for `body_map`: brain, eyes, heart, lungs, liver, stomach, gut, kidneys, bones,
+muscles, skin, immune, blood. Only organs the nutrient really supports may light up (the
+`fun_reel` prompt includes a list of well-supported links).
+
+Sound: by default a **synthesised placeholder** (light melody, a pop on every element, a buzz
+on the myth, dings on the fact and the end), copyright-free. Pass `audio` with your own
+voiceover or music file to use that instead, or `sound: "none"` for silence. ElevenLabs voice
+and effects will use the same timings later.
+
+**Clean style** (`style: "clean"`): the calm card slideshow with fades and a slow zoom.
 
 - Cards are placed inside Instagram's safe area (clear of the UI at the top and bottom).
-- `reveal: true` on a tip card shows its points one by one; other slides get a slow zoom
-  and fade into each other. A thin progress bar runs under the card (right to left in Arabic).
+- Clean style: `reveal: true` on a tip card shows its points one by one; other slides get a
+  slow zoom and fade into each other. A thin progress bar runs under the card (right to left
+  in Arabic).
 - Audio: silent by default, or pass `audio` with a royalty-free music or voice file from
   `out/` or `assets/` (normalised to streaming loudness and faded out). Never use copyrighted
   music.
@@ -126,18 +152,18 @@ drinking more water" or "make a macros card for a Greek yogurt bowl: 420 kcal, 3
 48 g carbs, 11 g fat", and it previews it in chat.
 
 Cards are 1080×1350 (4:5 portrait, the tallest format the feed shows) and use the Inter and IBM
-Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so it always fits; emoji aren't drawn on cards
+Plex Sans Arabic fonts; fun Reels use Baloo Bhaijaan 2 (all SIL Open Font License). Text is length-limited so it always fits; emoji aren't drawn on cards
 (put them in the caption). Set your brand with these optional variables:
 
-| Variable                                          | Default            | Used for                                              |
-| ------------------------------------------------- | ------------------ | ----------------------------------------------------- |
-| `BRAND_HANDLE`                                    | none               | Footer and the "follow" slide, e.g. `@body.blooms.ai` |
-| `BRAND_PRIMARY`                                   | `#2E7D5B`          | Pills, numbers, cover background, protein bar         |
-| `BRAND_ACCENT`                                    | `#E9964A`          | Highlights, carbs bar                                 |
-| `BRAND_HIGHLIGHT`                                 | `#D0645A`          | "Myth" box, fat bar                                   |
-| `BRAND_BACKGROUND` / `BRAND_TEXT` / `BRAND_MUTED` | cream / ink / grey | Card colours                                          |
-| `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer          |
-| `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                        |
+| Variable                                          | Default            | Used for                                         |
+| ------------------------------------------------- | ------------------ | ------------------------------------------------ |
+| `BRAND_HANDLE`                                    | none               | Footer and the "follow" slide, e.g. `@bodybloom` |
+| `BRAND_PRIMARY`                                   | `#2E7D5B`          | Pills, numbers, cover background, protein bar    |
+| `BRAND_ACCENT`                                    | `#E9964A`          | Highlights, carbs bar                            |
+| `BRAND_HIGHLIGHT`                                 | `#D0645A`          | "Myth" box, fat bar                              |
+| `BRAND_BACKGROUND` / `BRAND_TEXT` / `BRAND_MUTED` | cream / ink / grey | Card colours                                     |
+| `BRAND_LOGO`                                      | none               | `.png`, `.jpg` or `.svg` shown in the footer     |
+| `CARD_OUTPUT_DIR`                                 | `out`              | Where rendered JPEGs are saved                   |
 
 ### Publishing
 

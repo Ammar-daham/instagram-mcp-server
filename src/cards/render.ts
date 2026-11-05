@@ -5,7 +5,7 @@ import satori from "satori";
 import sharp from "sharp";
 import { CARD_HEIGHT, CARD_WIDTH } from "./layout.js";
 import { parseContent, TEMPLATES, type TemplateName } from "./templates/index.js";
-import { LOCALES, type Language } from "./locale.js";
+import { LOCALES, type Language, type Locale } from "./locale.js";
 import type { Theme } from "./theme.js";
 
 type FontWeight = 400 | 600 | 700 | 800;
@@ -17,6 +17,10 @@ interface FontSpec {
 
 // All SIL OFL 1.1, from @fontsource. IBM Plex Sans Arabic tops out at 700, which satori
 // uses for the 800 headings. (Noto Sans Arabic was tried: satori drops some of its dots.)
+/** Use as fontFamily for the fun style (Arabic glyphs, then its Latin companion). */
+export const FUN_FONT = "Baloo Bhaijaan 2";
+export const FUN_FONT_FAMILY = `${FUN_FONT}, ${FUN_FONT} Latin`;
+
 const FONT_SPECS: FontSpec[] = [
   ...([400, 600, 800] as const).flatMap((weight) =>
     ["latin", "latin-ext"].map((subset) => ({
@@ -30,6 +34,15 @@ const FONT_SPECS: FontSpec[] = [
     file: `@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-arabic-${weight}-normal.woff`,
     weight,
   })),
+  // Playful rounded font for the "fun" Reel style. Its Arabic and Latin files need different
+  // names: satori only uses the first font registered under a name and weight.
+  ...([600, 800] as const).flatMap((weight) =>
+    (["arabic", "latin"] as const).map((subset) => ({
+      name: subset === "arabic" ? FUN_FONT : `${FUN_FONT} Latin`,
+      file: `@fontsource/baloo-bhaijaan-2/files/baloo-bhaijaan-2-${subset}-${weight}-normal.woff`,
+      weight,
+    })),
+  ),
 ];
 
 let fontsPromise: Promise<{ name: string; data: Buffer; weight: FontWeight; style: "normal" }[]>;
@@ -52,6 +65,8 @@ function loadFonts() {
 
 export interface RenderOptions {
   language?: Language;
+  /** Override the language's style (font, labels), e.g. for the fun Reel style. */
+  locale?: Locale;
   /** false keeps text as <text> elements (readable SVG for snapshot tests). */
   embedFont?: boolean;
 }
@@ -65,7 +80,7 @@ export async function renderSvg(
 ): Promise<string> {
   const language = options.language ?? "en";
   const data = parseContent(template, content, language);
-  const element = TEMPLATES[template].render(data, theme, LOCALES[language]);
+  const element = TEMPLATES[template].render(data, theme, options.locale ?? LOCALES[language]);
   return satori(element as Parameters<typeof satori>[0], {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
@@ -92,14 +107,28 @@ export async function renderCard(
   return { jpeg, width: CARD_WIDTH, height: CARD_HEIGHT };
 }
 
+/** Render any satori element tree to a PNG (transparent where nothing is drawn). */
+export async function renderNodePng(node: unknown, width: number, height: number): Promise<Buffer> {
+  const svg = await satori(node as Parameters<typeof satori>[0], {
+    width,
+    height,
+    fonts: await loadFonts(),
+  });
+  return Buffer.from(new Resvg(svg, { fitTo: { mode: "width", value: width } }).render().asPng());
+}
+
 /** Lossless 1080×1350 PNG, e.g. as a video frame. */
 export async function renderCardPng(
   template: TemplateName,
   content: unknown,
   theme: Theme,
   language: Language = "en",
+  locale?: Locale,
 ): Promise<Buffer> {
-  const svg = await renderSvg(template, content, theme, { language });
+  const svg = await renderSvg(template, content, theme, {
+    language,
+    ...(locale ? { locale } : {}),
+  });
   return Buffer.from(
     new Resvg(svg, { fitTo: { mode: "width", value: CARD_WIDTH } }).render().asPng(),
   );

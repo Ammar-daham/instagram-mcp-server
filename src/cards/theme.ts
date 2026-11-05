@@ -11,7 +11,7 @@ export interface Theme {
   accent: string;
   /** Third colour, used for fat in the macros card. */
   highlight: string;
-  /** e.g. "@body.blooms.ai"; shown in every card's footer. */
+  /** e.g. "@bodybloom"; shown in every card's footer. */
   handle: string | undefined;
   /** Logo as a data URI, shown in the footer. */
   logo: string | undefined;

@@ -169,7 +169,7 @@ describe("Facebook login", () => {
   const igUser = () =>
     http.get(`${API}/${FB.userId}`, ({ request }) => {
       expect(new URL(request.url).searchParams.get("fields")).toBe("id,username");
-      return HttpResponse.json({ id: FB.userId, username: "body.blooms.ai" });
+      return HttpResponse.json({ id: FB.userId, username: "bodybloom" });
     });
   const debugToken = (data: object) =>
     http.get(`${API}/debug_token`, ({ request }) => {
@@ -192,7 +192,7 @@ describe("Facebook login", () => {
     expect(status).toMatchObject({
       valid: true,
       loginType: "facebook",
-      username: "body.blooms.ai",
+      username: "bodybloom",
       userId: FB.userId,
       daysLeft: 50,
       missingPermissions: ["instagram_manage_insights", "pages_read_engagement"],
@@ -248,7 +248,7 @@ describe("Facebook login", () => {
       ),
     );
     const status = await checkToken(client("EAAT"), envToken, FB, NOW);
-    expect(status).toMatchObject({ valid: true, username: "body.blooms.ai" });
+    expect(status).toMatchObject({ valid: true, username: "bodybloom" });
     expect(status.expiresAt).toBeUndefined();
     expect(status.advice).toMatch(/add META_APP_ID and META_APP_SECRET/);
   });

@@ -4,6 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import sharp from "sharp";
 import { z } from "zod";
+import { cleanFileName } from "./names.js";
 import { contactSheet } from "../cards/contact-sheet.js";
 import { LANGUAGES, type Language } from "../cards/locale.js";
 import { TEMPLATE_NAMES } from "../cards/templates/index.js";
@@ -13,6 +14,8 @@ import { mediaInputDirs } from "../hosting/cloudinary.js";
 import { PROJECT_ROOT } from "../paths.js";
 import { runReelPublish, type ReelDeps } from "../publishing/reel-flow.js";
 import { composeReel, type ReelSlide } from "../video/compose.js";
+import { buildFunReel, funShots } from "../video/fun/build.js";
+import type { FunSlide } from "../video/fun/slides.js";
 import { probe, VideoError } from "../video/ffmpeg.js";
 import { checkAudio } from "../video/inputs.js";
 import { buildReel } from "../video/reel.js";
@@ -30,13 +33,17 @@ const SAFETY =
   "straight to Instagram (never hosted publicly).";
 
 const slideSchema = z.object({
-  template: z.enum(TEMPLATE_NAMES),
+  template: z
+    .enum([...TEMPLATE_NAMES, "body_map"])
+    .describe(
+      "Card template, or body_map (fun style only): a glowing body where 1-3 organs light up and talk",
+    ),
   content: z.record(z.string(), z.unknown()),
   seconds: z.number().min(1).max(10).optional().describe("How long the slide shows"),
   reveal: z
     .boolean()
     .optional()
-    .describe("tip cards: show the points one by one (great for retention)"),
+    .describe("tip cards: show the points one by one (default on in the fun style)"),
 });
 
 const renderArgs = {
@@ -46,16 +53,22 @@ const renderArgs = {
     .min(1)
     .max(10)
     .describe("Slides in order; start with a strong hook (cover), end with follow"),
-  name: z
-    .string()
-    .regex(/^[a-z0-9][a-z0-9-]{0,40}$/, "lowercase letters, digits and dashes only")
-    .optional()
-    .describe("Base file name, e.g. 'vitamin-d3-reel'"),
+  name: z.string().optional().describe("Base file name, e.g. 'vitamin-d3-reel'"),
   audio: z
     .string()
     .optional()
     .describe("Optional music/voice file (mp3, m4a, wav) from out/ or assets/; default silent"),
-  progress_bar: z.boolean().default(true).describe("Thin progress bar under the card"),
+  style: z
+    .enum(["fun", "clean"])
+    .default("fun")
+    .describe(
+      "fun (default, the account's Reel style): dark green glow, playful font, everything pops in with sound effects, Gulf-dialect labels in Arabic. clean: the calm card slideshow",
+    ),
+  sound: z
+    .enum(["fun", "none"])
+    .default("fun")
+    .describe("fun style without an audio file: synthesised melody + pops/dings (fun) or silent"),
+  progress_bar: z.boolean().default(true).describe("clean style: thin progress bar under the card"),
 };
 
 interface RenderedReel {
@@ -69,10 +82,12 @@ interface RenderedReel {
 async function renderReelFile(
   args: {
     language: Language;
-    slides: ReelSlide[];
+    slides: (Omit<ReelSlide, "template"> & { template: ReelSlide["template"] | "body_map" })[];
     name?: string | undefined;
     audio?: string | undefined;
     progress_bar: boolean;
+    style: "fun" | "clean";
+    sound: "fun" | "none";
   },
   env: NodeJS.ProcessEnv,
   now: () => Date,
@@ -81,18 +96,44 @@ async function renderReelFile(
   const progress = progressReporter(extra);
   const theme = loadTheme(env);
   const audio = args.audio ? await checkAudio(args.audio, mediaInputDirs(env)) : undefined;
-  progress(`Rendering ${args.slides.length} slide(s)`);
-  const { segments, slideFrames } = await composeReel(args.slides, theme, args.language);
   const outDir = path.resolve(PROJECT_ROOT, env.CARD_OUTPUT_DIR || "out");
   await mkdir(outDir, { recursive: true });
   const stamp = now().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
-  const file = path.join(outDir, `${args.name ?? `${stamp}-reel`}-${args.language}.mp4`);
-  progress("Encoding the video");
-  const duration = await buildReel(segments, file, {
-    ...(audio ? { audio } : {}),
-    progressBar: args.progress_bar ? { colour: theme.accent, rtl: args.language === "ar" } : false,
-    ...(extra?.signal ? { signal: extra.signal } : {}),
-  });
+  const file = path.join(
+    outDir,
+    `${cleanFileName(args.name) ?? `${stamp}-reel`}-${args.language}.mp4`,
+  );
+  let duration: number;
+  let slideFrames: Buffer[];
+  if (args.style === "fun") {
+    const fun = await funShots(
+      args.slides as FunSlide[],
+      { theme, language: args.language },
+      progress,
+    );
+    slideFrames = fun.slideFrames;
+    progress("Encoding the video");
+    duration = await buildFunReel(fun.shots, file, {
+      sound: audio ? { file: audio } : args.sound,
+      ...(extra?.signal ? { signal: extra.signal } : {}),
+    });
+  } else {
+    const bodyMap = args.slides.findIndex((s) => s.template === "body_map");
+    if (bodyMap >= 0) {
+      throw new VideoError(`Slide ${bodyMap + 1}: body_map only exists in the fun style.`);
+    }
+    progress(`Rendering ${args.slides.length} slide(s)`);
+    const composed = await composeReel(args.slides as ReelSlide[], theme, args.language);
+    slideFrames = composed.slideFrames;
+    progress("Encoding the video");
+    duration = await buildReel(composed.segments, file, {
+      ...(audio ? { audio } : {}),
+      progressBar: args.progress_bar
+        ? { colour: theme.accent, rtl: args.language === "ar" }
+        : false,
+      ...(extra?.signal ? { signal: extra.signal } : {}),
+    });
+  }
   if (duration < 3) {
     throw new VideoError(
       `The Reel is ${duration.toFixed(1)} s; Instagram needs at least 3 s. Add slides or seconds.`,
@@ -106,7 +147,14 @@ async function renderReelFile(
   const warnings: string[] = [];
   if (duration > 30)
     warnings.push("Longer than 30 s: short Reels (7-15 s) tend to be watched to the end.");
-  if (!audio) warnings.push("Silent Reel: fine with on-screen text; add audio for more reach.");
+  if (!audio && (args.style === "clean" || args.sound === "none")) {
+    warnings.push("Silent Reel: fine with on-screen text; add audio for more reach.");
+  }
+  if (!audio && args.style === "fun" && args.sound === "fun") {
+    warnings.push(
+      "Placeholder soundtrack (synthesised melody + effects). Swap in a voiceover or music file with `audio` when you have one.",
+    );
+  }
   return { file, duration, sheet, info, warnings };
 }
 
@@ -130,12 +178,15 @@ export function registerReelTools(
     {
       title: "Render a Reel",
       description:
-        "Turn 1-10 nutrition cards (same templates and content as render_card) into a 9:16 " +
-        "Reel MP4 (1080x1920, H.264, 30 fps) with fades, a slow zoom, optional point-by-point " +
-        "reveal on tip cards, a progress bar and optional audio. Saves it in out/ and returns " +
-        "a preview sheet of the slides (MCP can't show video). Aim for 7-15 s and a strong " +
-        "first slide: viewers decide in 2 seconds. Ask the user for the language first if " +
-        "they haven't said.",
+        "Turn 1-10 slides into a 9:16 Reel MP4 (1080x1920, H.264, 30 fps) and return a preview " +
+        "sheet (MCP can't show video). Default style 'fun' (the account's look): dark green " +
+        "glow, playful font, everything pops in with sound effects; Arabic text in Gulf " +
+        "dialect. Slides use render_card's templates and fields, plus body_map: " +
+        "{title, badge?, organs: [{organ, says}] (1-3), sources?[]} where organ is one of " +
+        "brain, eyes, heart, lungs, liver, stomach, gut, kidneys, bones, muscles, skin, " +
+        "immune, blood. Only light up organs the nutrient really supports; the jokes must stay " +
+        "accurate. Good shape: cover (hook) → body_map → tip or myth_fact → follow, 10-20 s. " +
+        "Ask the user for the language first if they haven't said.",
       inputSchema: renderArgs,
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },

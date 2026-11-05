@@ -19,7 +19,7 @@ import { buildReel, reelDuration } from "../src/video/reel.js";
 import { API, BASE, noSleep, useMsw } from "./helpers.js";
 
 const server = useMsw();
-const theme = { ...DEFAULT_THEME, handle: "@body.blooms.ai" };
+const theme = { ...DEFAULT_THEME, handle: "@bodybloom" };
 const UPLOAD = "https://rupload.facebook.com/ig-api-upload/v24.0";
 let dir: string;
 let out: string;
@@ -269,8 +269,7 @@ describe("runReelPublish", () => {
         return HttpResponse.json({ id: "M9" });
       }),
       http.get(`${API}/:id`, ({ params }) => {
-        if (params.id === "me")
-          return HttpResponse.json({ user_id: "42", username: "body.blooms.ai" });
+        if (params.id === "me") return HttpResponse.json({ user_id: "42", username: "bodybloom" });
         if (params.id === "M9")
           return HttpResponse.json({ id: "M9", permalink: "https://www.instagram.com/reel/xyz/" });
         const code = queue.shift() ?? "FINISHED";
@@ -309,7 +308,7 @@ describe("runReelPublish", () => {
     expect(r).toMatchObject({
       mode: "dry_run",
       type: "reel",
-      account: "@body.blooms.ai",
+      account: "@bodybloom",
       video: { width: 1080, height: 1920 },
       shareToFeed: true,
       ready: true,
@@ -390,7 +389,7 @@ describe("runReelPublish", () => {
 
 describe("MCP reel tools", () => {
   it("render_reel returns a preview sheet and the MP4 details", async () => {
-    const env = { CARD_OUTPUT_DIR: out, BRAND_HANDLE: "body.blooms.ai" };
+    const env = { CARD_OUTPUT_DIR: out, BRAND_HANDLE: "bodybloom" };
     const mcp = createServer(createContextFactory({}), {
       env,
       now: () => new Date("2026-11-05T10:00:00Z"),
@@ -402,6 +401,7 @@ describe("MCP reel tools", () => {
       name: "render_reel",
       arguments: {
         language: "en",
+        style: "clean",
         name: "water",
         slides: [
           { template: "cover", seconds: 1.5, content: { title: "Drink more water" } },

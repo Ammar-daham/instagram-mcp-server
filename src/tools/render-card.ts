@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { cleanFileName } from "./names.js";
 import { previewJpeg, renderCard } from "../cards/render.js";
 import { TEMPLATE_NAMES, TEMPLATES } from "../cards/templates/index.js";
 import { LANGUAGES } from "../cards/locale.js";
@@ -50,7 +51,6 @@ export function registerRenderCard(server: McpServer, options: RenderCardOptions
           .describe("Template fields, as listed in the tool description"),
         file_name: z
           .string()
-          .regex(/^[a-z0-9][a-z0-9-]{0,60}$/, "lowercase letters, digits and dashes only")
           .optional()
           .describe("Optional file name (without extension), e.g. 'fibre-tips-2'"),
       },
@@ -65,7 +65,7 @@ export function registerRenderCard(server: McpServer, options: RenderCardOptions
         const stamp = now().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
         const file = path.join(
           outDir,
-          `${file_name ?? `${stamp}-${template.replace("_", "-")}-${language}`}.jpg`,
+          `${cleanFileName(file_name, 61) ?? `${stamp}-${template.replace("_", "-")}-${language}`}.jpg`,
         );
         await writeFile(file, card.jpeg);
         const preview = await previewJpeg(card.jpeg);

@@ -114,7 +114,7 @@ describe("MCP server", () => {
         );
         return HttpResponse.json({
           id: "17841400000000001",
-          username: "body.blooms.ai",
+          username: "bodybloom",
           followers_count: 28,
         });
       }),
@@ -128,7 +128,7 @@ describe("MCP server", () => {
     expect(result.isError).toBeFalsy();
     expect(JSON.parse(text(result))).toEqual({
       user_id: "17841400000000001",
-      username: "body.blooms.ai",
+      username: "bodybloom",
       followers_count: 28,
     });
   });
@@ -140,7 +140,7 @@ describe("MCP server", () => {
 
     it("renders, saves the JPEG and returns a preview image", async () => {
       // No IG token needed: rendering is offline.
-      const client = await connect({ CARD_OUTPUT_DIR: outDir, BRAND_HANDLE: "body.blooms.ai" });
+      const client = await connect({ CARD_OUTPUT_DIR: outDir, BRAND_HANDLE: "bodybloom" });
       const result = await client.callTool({
         name: "render_card",
         arguments: {
@@ -171,7 +171,7 @@ describe("MCP server", () => {
       const client = await connect({ CARD_OUTPUT_DIR: outDir });
       const result = await client.callTool({
         name: "render_card",
-        arguments: { language: "en", template: "follow", content: {}, file_name: "end-slide" },
+        arguments: { language: "en", template: "follow", content: {}, file_name: '"End Slide"' },
       });
       const info = (result.content as { text?: string }[])[1]!;
       expect(JSON.parse(info.text!).path).toBe(path.join(outDir, "end-slide.jpg"));
@@ -246,7 +246,7 @@ describe("MCP server", () => {
       const client = await connect(cloudEnv());
       const rendered = await client.callTool({
         name: "render_card",
-        arguments: { language: "en", template: "follow", content: {}, file_name: "end-slide" },
+        arguments: { language: "en", template: "follow", content: {}, file_name: '"End Slide"' },
       });
       const { path: file } = JSON.parse((rendered.content as { text?: string }[])[1]!.text!);
       const result = await client.callTool({ name: "upload_image", arguments: { path: file } });

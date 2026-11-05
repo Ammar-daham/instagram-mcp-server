@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { cleanFileName } from "./names.js";
 import { contactSheet } from "../cards/contact-sheet.js";
 import { LANGUAGES } from "../cards/locale.js";
 import { renderCard } from "../cards/render.js";
@@ -128,7 +129,6 @@ export function registerPublishTools(
         caption,
         name: z
           .string()
-          .regex(/^[a-z0-9][a-z0-9-]{0,40}$/, "lowercase letters, digits and dashes only")
           .optional()
           .describe("Base file name for the rendered slides, e.g. 'protein-breakfasts'"),
         confirm,
@@ -143,7 +143,7 @@ export function registerPublishTools(
         const outDir = path.resolve(PROJECT_ROOT, env.CARD_OUTPUT_DIR || "out");
         await mkdir(outDir, { recursive: true });
         const stamp = now().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
-        const base = args.name ?? `${stamp}-post`;
+        const base = cleanFileName(args.name) ?? `${stamp}-post`;
 
         const files: string[] = [];
         const jpegs: Buffer[] = [];

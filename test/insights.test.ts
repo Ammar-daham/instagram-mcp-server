@@ -317,7 +317,7 @@ describe("MCP insights tools", () => {
       IG_API_BASE_URL: BASE,
       IG_TOKEN_STORE: "/nonexistent/t.json",
       INSIGHTS_DATA_DIR: dir,
-      BRAND_HANDLE: "body.blooms.ai",
+      BRAND_HANDLE: "bodybloom",
     };
     const mcp = createServer(createContextFactory(env, { sleep: noSleep }), {
       env,
@@ -375,12 +375,12 @@ describe("MCP insights tools", () => {
       http.get(`${API}/42/insights`, () => HttpResponse.json({ data: [], ...leaky() })),
       // Instagram-login token: account info comes from /me.
       http.get(`${API}/me`, () =>
-        HttpResponse.json({ user_id: "42", username: "body.blooms.ai", followers_count: 28 }),
+        HttpResponse.json({ user_id: "42", username: "bodybloom", followers_count: 28 }),
       ),
     );
     const c = await connect();
     const r = body(await c.callTool({ name: "get_account_insights", arguments: { days: 7 } }));
-    expect(r.account).toBe("@body.blooms.ai");
+    expect(r.account).toBe("@bodybloom");
     expect(r.followers).toMatchObject({ current: 28 });
     expect(r.followers.note).toMatch(/Not enough follower history/);
     expect(JSON.parse(await readFile(path.join(dir, "followers.json"), "utf8"))).toEqual({

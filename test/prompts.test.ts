@@ -8,7 +8,7 @@ import { parseLanguage, recoverTopicArgs } from "../src/prompts/args.js";
 import { DISCLAIMER } from "../src/prompts/guidelines.js";
 import { createServer } from "../src/server.js";
 
-async function connect(env: NodeJS.ProcessEnv = { BRAND_HANDLE: "body.blooms.ai" }) {
+async function connect(env: NodeJS.ProcessEnv = { BRAND_HANDLE: "bodybloom" }) {
   const mcp = createServer(createContextFactory({}), { env });
   const client = new Client({ name: "test", version: "0" });
   const [a, b] = InMemoryTransport.createLinkedPair();
@@ -26,6 +26,7 @@ describe("prompts", () => {
     const { prompts } = await (await connect()).listPrompts();
     expect(prompts.map((p) => p.name).sort()).toEqual([
       "carousel_series",
+      "fun_reel",
       "nutrition_post",
       "performance_review",
       "weekly_content_plan",
@@ -62,7 +63,7 @@ describe("prompts", () => {
     expect(text).toMatch(/Never claim a food, diet or supplement cures/);
     expect(text).toMatch(/WITHOUT confirm \(dry run\)/);
     expect(text).toMatch(/Only after an explicit yes/);
-    expect(text).toContain("@body.blooms.ai");
+    expect(text).toContain("@bodybloom");
     expect(text).toContain("الأمهات المشغولات");
   });
 

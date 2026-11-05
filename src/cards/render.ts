@@ -17,6 +17,10 @@ interface FontSpec {
 
 // All SIL OFL 1.1, from @fontsource. IBM Plex Sans Arabic tops out at 700, which satori
 // uses for the 800 headings. (Noto Sans Arabic was tried: satori drops some of its dots.)
+/** Use as fontFamily for the fun style (Arabic glyphs, then its Latin companion). */
+export const FUN_FONT = "Baloo Bhaijaan 2";
+export const FUN_FONT_FAMILY = `${FUN_FONT}, ${FUN_FONT} Latin`;
+
 const FONT_SPECS: FontSpec[] = [
   ...([400, 600, 800] as const).flatMap((weight) =>
     ["latin", "latin-ext"].map((subset) => ({
@@ -30,6 +34,15 @@ const FONT_SPECS: FontSpec[] = [
     file: `@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-arabic-${weight}-normal.woff`,
     weight,
   })),
+  // Playful rounded font for the "fun" Reel style. Its Arabic and Latin files need different
+  // names: satori only uses the first font registered under a name and weight.
+  ...([600, 800] as const).flatMap((weight) =>
+    (["arabic", "latin"] as const).map((subset) => ({
+      name: subset === "arabic" ? FUN_FONT : `${FUN_FONT} Latin`,
+      file: `@fontsource/baloo-bhaijaan-2/files/baloo-bhaijaan-2-${subset}-${weight}-normal.woff`,
+      weight,
+    })),
+  ),
 ];
 
 let fontsPromise: Promise<{ name: string; data: Buffer; weight: FontWeight; style: "normal" }[]>;
@@ -90,6 +103,16 @@ export async function renderCard(
   const png = await renderCardPng(template, content, theme, language);
   const jpeg = await sharp(png).jpeg({ quality: 90, mozjpeg: true }).toBuffer();
   return { jpeg, width: CARD_WIDTH, height: CARD_HEIGHT };
+}
+
+/** Render any satori element tree to a PNG (transparent where nothing is drawn). */
+export async function renderNodePng(node: unknown, width: number, height: number): Promise<Buffer> {
+  const svg = await satori(node as Parameters<typeof satori>[0], {
+    width,
+    height,
+    fonts: await loadFonts(),
+  });
+  return Buffer.from(new Resvg(svg, { fitTo: { mode: "width", value: width } }).render().asPng());
 }
 
 /** Lossless 1080×1350 PNG, e.g. as a video frame. */

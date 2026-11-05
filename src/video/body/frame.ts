@@ -111,7 +111,8 @@ export function layoutBubbles(organs: BodyMapContent["organs"]): Bubble[] {
     const top = place(side) ?? Math.max(TOP_LIMIT, BOTTOM_LIMIT - height);
     sides[side].push({ organ, text: says, side, top, height });
   }
-  return [...sides.left, ...sides.right];
+  // Top to bottom: the order organs light up in animations.
+  return [...sides.left, ...sides.right].sort((a, b) => anchor(a.organ).y - anchor(b.organ).y);
 }
 
 function backgroundSvg(theme: Theme): string {
@@ -152,6 +153,7 @@ function textLayer(
   visible: number,
   theme: Theme,
   language: Language,
+  anim: { pop: number; title: number } = { pop: 1, title: 1 },
 ): CardNode {
   const rtl = language === "ar";
   const names = ORGAN_NAMES[language];
@@ -197,6 +199,8 @@ function textLayer(
         lineHeight: 1.15,
         textAlign: "center",
         textShadow: "0 4px 0 #0A2A20",
+        transform: `scale(${backOut(anim.title).toFixed(3)})`,
+        opacity: Math.min(1, anim.title * 2),
       },
       c.title,
     ),
@@ -215,7 +219,8 @@ function textLayer(
         padding: "18px 24px 22px",
         border: "4px solid #1B1B1B",
         boxShadow: "0 8px 0 #0A2A20",
-        transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)`,
+        // The newest bubble pops in with a little overshoot.
+        transform: `rotate(${i % 2 === 0 ? -2 : 2}deg) scale(${(i === visible - 1 ? backOut(anim.pop) : 1).toFixed(3)})`,
       },
       div(
         { fontSize: 27, fontWeight: 800, color: theme.primary, marginBottom: 2 },
@@ -263,10 +268,22 @@ function textLayer(
 }
 
 export interface BodyMapFrameOptions {
-  /** How many bubbles to show (for pop-in animation); default all. */
+  /** How many organs are lit and talking (top to bottom); default all. */
   bubbles?: number;
+  /** 0..1: pop-in progress of the newest bubble. */
+  pop?: number;
+  /** 0..1: entrance progress of the title. */
+  title?: number;
   /** Glow strength 0..1 (for a pulse). */
   glow?: number;
+}
+
+/** Ease-out with a small overshoot (0 → 1.1 → 1), for "pop" animations. */
+export function backOut(t: number): number {
+  const x = Math.max(0, Math.min(1, t));
+  const c1 = 1.9;
+  const c3 = c1 + 1;
+  return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2;
 }
 
 const svgPng = (svg: string) => Buffer.from(new Resvg(svg).render().asPng());
@@ -280,12 +297,21 @@ export async function renderBodyMapFrame(
 ): Promise<Buffer> {
   const c = validateContent("body_map", bodyMapSchema, content, language) as BodyMapContent;
   const bubbles = layoutBubbles(c.organs);
-  const visible = options.bubbles ?? bubbles.length;
-  const lit = c.organs.map((o) => o.organ);
+  const visible = Math.min(bubbles.length, options.bubbles ?? bubbles.length);
+  const lit = bubbles.slice(0, visible).map((b) => b.organ);
   const layers = [
     { input: svgPng(bodySvg({ highlight: lit, glow: options.glow ?? 1 })) },
     { input: svgPng(connectorsSvg(bubbles, visible)) },
-    { input: await renderNodePng(textLayer(c, bubbles, visible, theme, language), 1080, 1920) },
+    {
+      input: await renderNodePng(
+        textLayer(c, bubbles, visible, theme, language, {
+          pop: options.pop ?? 1,
+          title: options.title ?? 1,
+        }),
+        1080,
+        1920,
+      ),
+    },
   ];
   return sharp(svgPng(backgroundSvg(theme)))
     .composite(layers)

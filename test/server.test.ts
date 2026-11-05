@@ -171,7 +171,7 @@ describe("MCP server", () => {
       const client = await connect({ CARD_OUTPUT_DIR: outDir });
       const result = await client.callTool({
         name: "render_card",
-        arguments: { language: "en", template: "follow", content: {}, file_name: "end-slide" },
+        arguments: { language: "en", template: "follow", content: {}, file_name: '"End Slide"' },
       });
       const info = (result.content as { text?: string }[])[1]!;
       expect(JSON.parse(info.text!).path).toBe(path.join(outDir, "end-slide.jpg"));
@@ -246,7 +246,7 @@ describe("MCP server", () => {
       const client = await connect(cloudEnv());
       const rendered = await client.callTool({
         name: "render_card",
-        arguments: { language: "en", template: "follow", content: {}, file_name: "end-slide" },
+        arguments: { language: "en", template: "follow", content: {}, file_name: '"End Slide"' },
       });
       const { path: file } = JSON.parse((rendered.content as { text?: string }[])[1]!.text!);
       const result = await client.callTool({ name: "upload_image", arguments: { path: file } });

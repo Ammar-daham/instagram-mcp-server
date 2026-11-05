@@ -4,6 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import sharp from "sharp";
 import { z } from "zod";
+import { cleanFileName } from "./names.js";
 import { contactSheet } from "../cards/contact-sheet.js";
 import { LANGUAGES, type Language } from "../cards/locale.js";
 import { TEMPLATE_NAMES } from "../cards/templates/index.js";
@@ -52,11 +53,7 @@ const renderArgs = {
     .min(1)
     .max(10)
     .describe("Slides in order; start with a strong hook (cover), end with follow"),
-  name: z
-    .string()
-    .regex(/^[a-z0-9][a-z0-9-]{0,40}$/, "lowercase letters, digits and dashes only")
-    .optional()
-    .describe("Base file name, e.g. 'vitamin-d3-reel'"),
+  name: z.string().optional().describe("Base file name, e.g. 'vitamin-d3-reel'"),
   audio: z
     .string()
     .optional()
@@ -102,7 +99,10 @@ async function renderReelFile(
   const outDir = path.resolve(PROJECT_ROOT, env.CARD_OUTPUT_DIR || "out");
   await mkdir(outDir, { recursive: true });
   const stamp = now().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
-  const file = path.join(outDir, `${args.name ?? `${stamp}-reel`}-${args.language}.mp4`);
+  const file = path.join(
+    outDir,
+    `${cleanFileName(args.name) ?? `${stamp}-reel`}-${args.language}.mp4`,
+  );
   let duration: number;
   let slideFrames: Buffer[];
   if (args.style === "fun") {

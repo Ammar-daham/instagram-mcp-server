@@ -55,6 +55,11 @@ export function uploadAllowedDirs(env: NodeJS.ProcessEnv = process.env): string[
   return [outDir, ...extra];
 }
 
+/** Folders local media (videos, music) may be read from: upload folders plus assets/. */
+export function mediaInputDirs(env: NodeJS.ProcessEnv = process.env): string[] {
+  return [...uploadAllowedDirs(env), path.resolve(PROJECT_ROOT, "assets")];
+}
+
 /** Read Cloudinary settings from either CLOUDINARY_URL or the three separate variables. */
 export function loadCloudinaryConfig(env: NodeJS.ProcessEnv = process.env): CloudinaryConfig {
   const cleaned = Object.fromEntries(

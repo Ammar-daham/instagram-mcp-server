@@ -1,8 +1,12 @@
 import sharp from "sharp";
 
-/** Lay out card thumbnails in a grid (max 5 per row), to preview a carousel in one image. */
-export async function contactSheet(jpegs: Buffer[], thumbWidth = 270): Promise<Buffer> {
-  const thumbHeight = Math.round((thumbWidth * 1350) / 1080);
+/** Lay out thumbnails in a grid (max 5 per row), to preview a carousel or Reel in one image. */
+export async function contactSheet(
+  jpegs: Buffer[],
+  thumbWidth = 270,
+  aspect = 1350 / 1080,
+): Promise<Buffer> {
+  const thumbHeight = Math.round(thumbWidth * aspect);
   const gap = 12;
   const cols = Math.min(jpegs.length, 5);
   const rows = Math.ceil(jpegs.length / cols);

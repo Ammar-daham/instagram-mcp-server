@@ -38,20 +38,25 @@ describe("MCP server", () => {
     const client = await connect(env);
     expect(client.getServerVersion()?.name).toBe(SERVER_NAME);
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual([
-      "check_token",
-      "create_and_publish_card_post",
-      "delete_image",
-      "get_account_info",
-      "get_account_insights",
-      "get_post_insights",
-      "get_recent_posts",
-      "publish_carousel",
-      "publish_post",
-      "render_card",
-      "suggest_hashtags",
-      "upload_image",
-    ]);
+    expect(tools.map((t) => t.name).sort()).toEqual(
+      [
+        "check_token",
+        "create_and_publish_card_post",
+        "delete_image",
+        "get_account_info",
+        "get_account_insights",
+        "get_post_insights",
+        "create_and_publish_reel",
+        "get_recent_posts",
+        "publish_carousel",
+        "publish_post",
+        "publish_reel",
+        "render_card",
+        "render_reel",
+        "suggest_hashtags",
+        "upload_image",
+      ].sort(),
+    );
   });
 
   it("get_account_info returns the account", async () => {

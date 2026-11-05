@@ -100,6 +100,7 @@ const REELS_METRICS = [
   "shares",
   "total_interactions",
   "ig_reels_avg_watch_time",
+  "ig_reels_video_view_total_time",
 ];
 
 export interface PostInsights {
@@ -113,6 +114,7 @@ export interface PostInsights {
   /** Derived rates, as percentages of reach. */
   rates?: { engagement: number; saves: number; shares: number };
   avgWatchSeconds?: number;
+  totalWatchMinutes?: number;
   unavailable?: string[];
   error?: string;
 }
@@ -195,6 +197,9 @@ export async function getPostInsights(
   };
   if (metrics.ig_reels_avg_watch_time !== undefined) {
     result.avgWatchSeconds = Math.round(metrics.ig_reels_avg_watch_time / 100) / 10;
+  }
+  if (metrics.ig_reels_video_view_total_time !== undefined) {
+    result.totalWatchMinutes = Math.round(metrics.ig_reels_video_view_total_time / 6000) / 10;
   }
   return result;
 }

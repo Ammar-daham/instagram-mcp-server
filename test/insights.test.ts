@@ -93,6 +93,7 @@ function mediaHandlers() {
           shares: 1,
           total_interactions: 9,
           ig_reels_avg_watch_time: 6861,
+          ig_reels_video_view_total_time: 212696,
         },
         "3": {
           reach: 50,

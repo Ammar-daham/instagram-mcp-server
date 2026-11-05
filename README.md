@@ -37,20 +37,23 @@ Then ask Claude things like "how many followers do I have?" or "check my Instagr
 
 ### Tools
 
-| Tool                           | What it does                                                                                                      |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `check_token`                  | Checks the token works, which account it belongs to, and days until it expires                                    |
-| `get_account_info`             | Username, name, account type, followers, following, post count                                                    |
-| `render_card`                  | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview                                |
-| `upload_image`                 | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                                  |
-| `delete_image`                 | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working                   |
-| `publish_post`                 | Publishes one image with a caption (dry run unless `confirm: true`)                                               |
-| `publish_carousel`             | Publishes 2–10 images as a carousel (dry run unless `confirm: true`)                                              |
-| `create_and_publish_card_post` | Renders 1–10 cards, previews them all, and publishes on `confirm: true`                                           |
-| `suggest_hashtags`             | Curated nutrition hashtag mix (broad, specific, niche) in Arabic, English or both                                 |
-| `get_recent_posts`             | Recent posts: type, date, link, caption preview, likes, comments                                                  |
-| `get_post_insights`            | Per-post reach, views, saves, shares, follows (feed posts), watch time (reels), top posts and averages per format |
-| `get_account_insights`         | Account reach, engagement, saves, shares and follower growth over the last 1–30 days                              |
+| Tool                           | What it does                                                                                                                     |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `check_token`                  | Checks the token works, which account it belongs to, and days until it expires                                                   |
+| `get_account_info`             | Username, name, account type, followers, following, post count                                                                   |
+| `render_card`                  | Renders a branded 1080×1350 nutrition card, saves it to `out/` and shows a preview                                               |
+| `upload_image`                 | Uploads a rendered card to Cloudinary and returns the public URL Instagram needs                                                 |
+| `delete_image`                 | Deletes an uploaded image from Cloudinary (e.g. once the post is live) so its URL stops working                                  |
+| `publish_post`                 | Publishes one image with a caption (dry run unless `confirm: true`)                                                              |
+| `publish_carousel`             | Publishes 2–10 images as a carousel (dry run unless `confirm: true`)                                                             |
+| `create_and_publish_card_post` | Renders 1–10 cards, previews them all, and publishes on `confirm: true`                                                          |
+| `render_reel`                  | Turns cards into a 9:16 Reel MP4 (fades, slow zoom, point-by-point reveal, progress bar, optional audio) and previews the slides |
+| `publish_reel`                 | Publishes an MP4 as a Reel, sent straight to Instagram (dry run unless `confirm: true`)                                          |
+| `create_and_publish_reel`      | Renders a Reel and publishes it on `confirm: true`                                                                               |
+| `suggest_hashtags`             | Curated nutrition hashtag mix (broad, specific, niche) in Arabic, English or both                                                |
+| `get_recent_posts`             | Recent posts: type, date, link, caption preview, likes, comments                                                                 |
+| `get_post_insights`            | Per-post reach, views, saves, shares, follows (feed posts), watch time (reels), top posts and averages per format                |
+| `get_account_insights`         | Account reach, engagement, saves, shares and follower growth over the last 1–30 days                                             |
 
 ### Prompts
 
@@ -69,6 +72,27 @@ Every prompt asks for the language (Arabic or English) if you leave it empty, fo
 health-claims guardrail (evidence-based wording, no cure or weight-loss promises, official
 intakes only for supplements, a "not medical advice" line where needed), and ends with a dry
 run: Claude shows you the preview and caption and only publishes after you say yes.
+
+### Reels
+
+Ask "Make an Arabic Reel about vitamin D3": Claude picks 3–6 cards (strong cover first,
+follow slide last), renders a 1080×1920 MP4 in `out/`, shows a preview sheet of the slides,
+and publishes only after you approve.
+
+- Cards are placed inside Instagram's safe area (clear of the UI at the top and bottom).
+- `reveal: true` on a tip card shows its points one by one; other slides get a slow zoom
+  and fade into each other. A thin progress bar runs under the card (right to left in Arabic).
+- Audio: silent by default, or pass `audio` with a royalty-free music or voice file from
+  `out/` or `assets/` (normalised to streaming loudness and faded out). Never use copyrighted
+  music.
+- Output: H.264 High, 30 fps, AAC 48 kHz, faststart; 3 s minimum, 7–15 s recommended.
+- Publishing uses Instagram's **resumable upload**: the video goes straight to Meta, so it's
+  never hosted publicly (no Cloudinary needed). Processing a video takes a minute or more;
+  progress updates keep clients from timing out, and cancelling before the final step
+  publishes nothing. The cover is taken 1 s into the video unless you choose `thumb_offset_ms`.
+- In a sandbox with a firewall, allow `rupload.facebook.com` (Meta's upload host).
+
+ffmpeg and ffprobe come bundled (`ffmpeg-static`, `ffprobe-static`); nothing to install.
 
 ### Insights
 

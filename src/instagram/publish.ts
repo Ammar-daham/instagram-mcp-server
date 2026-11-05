@@ -149,3 +149,72 @@ export async function publishContainer(
     throw error;
   }
 }
+
+/** Hosts Meta uses for resumable uploads; the token is only ever sent to these. */
+const UPLOAD_HOSTS = new Set(["rupload.facebook.com", "rupload.instagram.com"]);
+
+/** Reel container for a resumable upload: no public video URL needed. */
+export async function createReelContainer(
+  client: InstagramClient,
+  userId: string,
+  options: { caption: string; shareToFeed?: boolean; thumbOffsetMs?: number },
+): Promise<{ id: string; uri: string }> {
+  const res = await client.post<{ id: string; uri?: string }>(`${userId}/media`, {
+    media_type: "REELS",
+    upload_type: "resumable",
+    caption: options.caption,
+    share_to_feed: options.shareToFeed === false ? "false" : "true",
+    thumb_offset: options.thumbOffsetMs,
+  });
+  if (!res.uri) throw new PublishError("Instagram didn't return an upload address for the Reel.");
+  return { id: res.id, uri: res.uri };
+}
+
+/** Send the video bytes straight to Meta (resumable upload, single request). */
+export async function uploadReelVideo(
+  uri: string,
+  accessToken: string,
+  video: Buffer,
+  options: {
+    fetch?: typeof fetch;
+    maxRetries?: number;
+    sleep?: (ms: number) => Promise<void>;
+  } = {},
+): Promise<void> {
+  const host = new URL(uri).host;
+  if (new URL(uri).protocol !== "https:" || !UPLOAD_HOSTS.has(host)) {
+    throw new PublishError(`Refusing to upload to unexpected host ${host}.`);
+  }
+  const fetchImpl = options.fetch ?? globalThis.fetch;
+  const sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const maxRetries = options.maxRetries ?? 2;
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
+    try {
+      res = await fetchImpl(uri, {
+        method: "POST",
+        headers: {
+          Authorization: `OAuth ${accessToken}`,
+          offset: "0",
+          file_size: String(video.length),
+        },
+        body: video,
+      });
+    } catch (cause) {
+      if (attempt < maxRetries) {
+        await sleep(2000 * 2 ** attempt);
+        continue;
+      }
+      throw new PublishError(`Could not reach Meta's upload service: ${(cause as Error).message}`);
+    }
+    const text = await res.text();
+    if (res.ok) return;
+    if (res.status >= 500 && attempt < maxRetries) {
+      await sleep(2000 * 2 ** attempt);
+      continue;
+    }
+    // Strip anything token-like before surfacing the message.
+    const detail = text.replace(/(EAA|IGAA)[A-Za-z0-9]+/g, "***").slice(0, 300);
+    throw new PublishError(`Uploading the video failed (HTTP ${res.status}): ${detail}`);
+  }
+}

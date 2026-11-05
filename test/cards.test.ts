@@ -13,7 +13,7 @@ import {
 import { scriptCounts, unsupportedChars } from "../src/cards/text.js";
 import { DEFAULT_THEME, loadTheme, tint } from "../src/cards/theme.js";
 
-const theme = { ...DEFAULT_THEME, handle: "@body.blooms.ai" };
+const theme = { ...DEFAULT_THEME, handle: "@bodybloom" };
 
 /** Satori emits one <text> per word (sometimes per glyph); join them, ignoring spaces. */
 const textOf = (svg: string) =>
@@ -67,7 +67,7 @@ describe("card templates", () => {
     // embedFont: false keeps text as <text> elements, so the snapshot shows words and positions.
     const svg = await renderSvg(name, SAMPLES[name], theme, { embedFont: false });
     expect(svg).toMatch(/^<svg width="1080" height="1350"/);
-    has(svg, "@body.blooms.ai");
+    has(svg, "@bodybloom");
     expect(svg).toMatchSnapshot();
   });
 
@@ -143,8 +143,8 @@ describe("content validation", () => {
 describe("theme", () => {
   it("uses defaults and normalises the handle", () => {
     expect(loadTheme({})).toEqual(DEFAULT_THEME);
-    expect(loadTheme({ BRAND_HANDLE: "body.blooms.ai", BRAND_PRIMARY: "#112233" })).toMatchObject({
-      handle: "@body.blooms.ai",
+    expect(loadTheme({ BRAND_HANDLE: "bodybloom", BRAND_PRIMARY: "#112233" })).toMatchObject({
+      handle: "@bodybloom",
       primary: "#112233",
     });
   });
@@ -221,7 +221,7 @@ describe("Arabic cards", () => {
       embedFont: false,
       language: "ar",
     });
-    has(svg, "@body.blooms.ai");
+    has(svg, "@bodybloom");
     expect(svg).toMatchSnapshot();
   });
 

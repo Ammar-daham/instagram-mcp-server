@@ -48,7 +48,7 @@ function fakes(options: { statuses?: string[]; quotaUsed?: number; publishFails?
     http.get(`${API}/42/media`, () => HttpResponse.json({ data: [{ id: "M1" }] })),
     http.get(`${API}/:id`, ({ params }) => {
       const id = String(params.id);
-      if (id === "me") return HttpResponse.json({ user_id: "42", username: "body.blooms.ai" });
+      if (id === "me") return HttpResponse.json({ user_id: "42", username: "bodybloom" });
       if (id === "M1") {
         return HttpResponse.json({
           id: "M1",
@@ -134,7 +134,7 @@ describe("dry run", () => {
     expect(result).toMatchObject({
       mode: "dry_run",
       type: "post",
-      account: "@body.blooms.ai",
+      account: "@bodybloom",
       caption: { characters: 24, hashtags: ["#hydration"] },
       images: [{ kind: "local", width: 1080, height: 1350 }],
       publishingLimit: { used: 3, total: 100, remaining: 97 },

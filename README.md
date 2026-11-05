@@ -131,7 +131,7 @@ Plex Sans Arabic fonts (both SIL Open Font License). Text is length-limited so i
 
 | Variable                                          | Default            | Used for                                              |
 | ------------------------------------------------- | ------------------ | ----------------------------------------------------- |
-| `BRAND_HANDLE`                                    | none               | Footer and the "follow" slide, e.g. `@body.blooms.ai` |
+| `BRAND_HANDLE`                                    | none               | Footer and the "follow" slide, e.g. `@bodybloom` |
 | `BRAND_PRIMARY`                                   | `#2E7D5B`          | Pills, numbers, cover background, protein bar         |
 | `BRAND_ACCENT`                                    | `#E9964A`          | Highlights, carbs bar                                 |
 | `BRAND_HIGHLIGHT`                                 | `#D0645A`          | "Myth" box, fat bar                                   |

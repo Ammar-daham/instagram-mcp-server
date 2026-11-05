@@ -5,12 +5,12 @@ describe("caption", () => {
   it("counts characters, hashtags and mentions (Arabic included)", () => {
     expect(
       captionStats(
-        "High protein 💪 breakfast! #protein #تغذية_صحية Follow @body.blooms.ai email a@b.com",
+        "High protein 💪 breakfast! #protein #تغذية_صحية Follow @bodybloom email a@b.com",
       ),
     ).toEqual({
-      characters: 83,
+      characters: 78,
       hashtags: ["#protein", "#تغذية_صحية"],
-      mentions: ["@body.blooms.ai"],
+      mentions: ["@bodybloom"],
     });
   });
 
